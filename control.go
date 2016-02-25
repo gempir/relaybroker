@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strings"
 )
 
 var (
@@ -32,16 +33,19 @@ func handleRequest(conn net.Conn, ircbot *Bot) {
 
 	message, _ := bufio.NewReader(conn).ReadString('\n')
 	remoteAddr := conn.RemoteAddr().String()
+	remoteAddrIP := strings.Split(remoteAddr, ":")
 
-	if stringInSlice(remoteAddr, auth) {
+	if stringInSlice(remoteAddrIP[0], auth) {
 		handleMessage(message, ircbot)
-		conn.Write([]byte("Message received."))
-	} else if message == "auth "+TCPPass {
-		auth = append(auth, remoteAddr)
-		handleMessage(message, ircbot)
-		conn.Write([]byte("Message received."))
+		conn.Write([]byte("Message received"))
+	} else if message == "AUTH "+TCPPass {
+
+		auth = append(auth, remoteAddrIP[0])
+		fmt.Println(auth)
+		conn.Write([]byte("Authenticated\r\n"))
+	} else {
+		conn.Write([]byte("not authenticated use \"AUTH password\" to authenticate"))
 	}
-	fmt.Println(auth)
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -55,4 +59,9 @@ func stringInSlice(a string, list []string) bool {
 
 func handleMessage(message string, ircbot *Bot) {
 	fmt.Println(message)
+	if strings.Contains(message, "JOIN ") {
+		joinComm := strings.Split(message, "JOIN ")
+		channels := strings.Split(joinComm[1], " ")
+		go ircbot.AddToJoin(channels)
+	}
 }
