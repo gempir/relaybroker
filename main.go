@@ -14,7 +14,7 @@ type Bot struct {
 	server      string
 	groupserver string
 	port        string
-	conn        net.Conn
+	connlist    []net.Conn
 }
 
 // NewBot main config
@@ -23,11 +23,28 @@ func NewBot() *Bot {
 		server:      "irc.twitch.tv",
 		groupserver: "group.tmi.twitch.tv",
 		port:        "6667",
-		conn:        nil,
+		connlist:    make([]net.Conn, 0),
 	}
 }
 
+// Add a new connection
+func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
+	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
+	if err != nil {
+		log.Fatal("unable to connect to IRC server ", err)
+		return nil, err
+	}
+	fmt.Fprintf(conn, "PASS %s\r\n", BotPass)
+	fmt.Fprintf(conn, "USER %s\r\n", BotNick)
+	fmt.Fprintf(conn, "NICK %s\r\n", BotNick)
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
+	log.Printf("Connected to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+	return conn, nil
+}
+
 // Connect basic connection
+/*
 func (bot *Bot) Connect() (conn net.Conn, err error) {
 	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
@@ -42,11 +59,20 @@ func (bot *Bot) Connect() (conn net.Conn, err error) {
 	log.Printf("Connected to IRC server %s (%s)\n", bot.server, bot.conn.RemoteAddr())
 	return bot.conn, nil
 }
+*/
 
 func main() {
 	ircbot := NewBot()
 	go TCPServer(ircbot)
-	conn, _ := ircbot.Connect()
+	/*
+		conn, _ := ircbot.Connect()
+		defer conn.Close()
+	*/
+	conn, err := ircbot.CreateConnection()
+	fmt.Printf("conn:%s\n", conn)
+	fmt.Printf("err:%s\n", err)
+	ircbot.connlist = append(ircbot.connlist, conn)
+	fmt.Printf("connlist:%s\n", ircbot.connlist)
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
@@ -58,7 +84,7 @@ func main() {
 		}
 		if strings.Contains(line, "PING") {
 			pongdata := strings.Split(line, "PING ")
-			fmt.Fprintf(ircbot.conn, "PONG %s\r\n", pongdata[1])
+			fmt.Fprintf(conn, "PONG %s\r\n", pongdata[1])
 		}
 		ircbot.Handle(line)
 	}
@@ -69,7 +95,11 @@ func main() {
 // 45 per 11 seconds to deal with twitch ratelimits
 func (bot *Bot) HandleJoin(channels []string) {
 	for _, channel := range channels {
-		fmt.Fprintf(bot.conn, "JOIN %s\r\n", channel)
+		for _, conn := range bot.connlist {
+			fmt.Println("Joining " + channel)
+			fmt.Println(conn)
+			fmt.Fprintf(conn, "JOIN %s\r\n", channel)
+		}
 	}
 }
 
@@ -79,7 +109,11 @@ func (bot *Bot) Message(channel string, message string) {
 		return
 	}
 	fmt.Printf("Bot: " + message + "\n")
-	fmt.Fprintf(bot.conn, "PRIVMSG "+channel+" :"+message+"\r\n")
+
+	/* Find a suitable connection to use */
+	for _, conn := range bot.connlist {
+		fmt.Fprintf(conn, "PRIVMSG %s :%s\r\n", channel, message)
+	}
 }
 
 // Handle handles messages from irc

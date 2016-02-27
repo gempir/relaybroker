@@ -36,6 +36,7 @@ func handleRequest(conn net.Conn, ircbot *Bot) {
 	message, _ := bufio.NewReader(conn).ReadString('\n')
 	remoteAddr := conn.RemoteAddr().String()
 	remoteAddrIP := strings.Split(remoteAddr, ":")
+	fmt.Println(message)
 
 	if stringInSlice(remoteAddrIP[0], auth) {
 		handleMessage(message, ircbot)
@@ -65,5 +66,11 @@ func handleMessage(message string, ircbot *Bot) {
 		joinComm := strings.Split(message, "JOIN ")
 		channels := strings.Split(joinComm[1], " ")
 		go ircbot.HandleJoin(channels)
+	} else if strings.Contains(message, "PRIVMSG ") {
+		privmsgComm := strings.Split(message, "PRIVMSG ")
+		remainingString := strings.Split(privmsgComm[1], " :")
+		channel := remainingString[0]
+		message := remainingString[1]
+		go ircbot.Message(channel, message)
 	}
 }
