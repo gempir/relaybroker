@@ -7,11 +7,6 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
-	"time"
-)
-
-var (
-	toJoin []string
 )
 
 // Bot struct for main config
@@ -71,31 +66,11 @@ func main() {
 
 }
 
-// AddToJoin will just add channels to the channels still to Join
-func (bot *Bot) AddToJoin(channels []string) {
-	for _, element := range channels {
-		toJoin = append(toJoin, element)
-	}
-}
-
 // HandleJoin will slowly join all channels given
 // 45 per 11 seconds to deal with twitch ratelimits
-func (bot *Bot) HandleJoin() {
-	for {
-		if len(toJoin) == 0 {
-			continue
-		}
-
-		if len(toJoin) > 45 {
-
-		} else {
-			for _, channel := range toJoin {
-				fmt.Fprintf(bot.conn, "JOIN %s\r\n", channel)
-				time.Sleep(010 * time.Millisecond)
-			}
-			toJoin = toJoin[:0]
-		}
-		time.Sleep(11000 * time.Millisecond)
+func (bot *Bot) HandleJoin(channels []string) {
+	for _, channel := range channels {
+		fmt.Fprintf(bot.conn, "JOIN %s\r\n", channel)
 	}
 }
 

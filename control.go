@@ -62,6 +62,6 @@ func handleMessage(message string, ircbot *Bot) {
 	if strings.Contains(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
 		channels := strings.Split(joinComm[1], " ")
-		go ircbot.AddToJoin(channels)
+		go ircbot.HandleJoin(channels)
 	}
 }
