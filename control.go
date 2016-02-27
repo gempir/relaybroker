@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 )
 
@@ -16,6 +17,7 @@ func TCPServer(ircbot *Bot) {
 	ln, err := net.Listen("tcp", ":"+TCPPort)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
+		os.Exit(1)
 	}
 	defer ln.Close()
 
