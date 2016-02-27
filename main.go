@@ -46,7 +46,6 @@ func (bot *Bot) Connect() (conn net.Conn, err error) {
 func main() {
 	ircbot := NewBot()
 	go TCPServer(ircbot)
-	go ircbot.HandleJoin()
 	conn, _ := ircbot.Connect()
 	defer conn.Close()
 
