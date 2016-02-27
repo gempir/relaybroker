@@ -13,7 +13,7 @@ var (
 
 // TCPServer simple tcp server for commands
 func TCPServer(ircbot *Bot) {
-	ln, err := net.Listen("tcp", ":7353")
+	ln, err := net.Listen("tcp", ":"+TCPPort)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
 	}
