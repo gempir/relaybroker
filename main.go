@@ -14,6 +14,7 @@ type Bot struct {
 	server      string
 	groupserver string
 	port        string
+	inconn      net.Conn
 	connlist    []net.Conn
 }
 
@@ -23,6 +24,7 @@ func NewBot() *Bot {
 		server:      "irc.twitch.tv",
 		groupserver: "group.tmi.twitch.tv",
 		port:        "6667",
+		inconn:      nil,
 		connlist:    make([]net.Conn, 0),
 	}
 }
@@ -119,6 +121,8 @@ func (bot *Bot) Message(channel string, message string) {
 // Handle handles messages from irc
 func (bot *Bot) Handle(line string) {
 	if strings.Contains(line, ".tmi.twitch.tv PRIVMSG ") {
+		fmt.Println("Sending data to inconn!")
+		bot.inconn.Write([]byte(line + "\r\n"))
 		messageTMISplit := strings.Split(line, ".tmi.twitch.tv PRIVMSG ")
 		messageChannelRaw := strings.Split(messageTMISplit[1], " :")
 		channel := messageChannelRaw[0]
