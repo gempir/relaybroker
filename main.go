@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/textproto"
+	"os"
 	"strings"
 )
 
@@ -14,8 +15,12 @@ type Bot struct {
 	server      string
 	groupserver string
 	port        string
+	oauth       string
+	nick        string
 	inconn      net.Conn
+	mainconn    net.Conn
 	connlist    []net.Conn
+	groupconn   net.Conn
 }
 
 // NewBot main config
@@ -24,59 +29,16 @@ func NewBot() *Bot {
 		server:      "irc.twitch.tv",
 		groupserver: "group.tmi.twitch.tv",
 		port:        "6667",
+		oauth:       "",
+		nick:        "",
 		inconn:      nil,
+		mainconn:    nil,
 		connlist:    make([]net.Conn, 0),
+		groupconn:   nil,
 	}
 }
 
-// Add a new connection
-func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
-	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
-	if err != nil {
-		log.Fatal("unable to connect to IRC server ", err)
-		return nil, err
-	}
-	fmt.Fprintf(conn, "PASS %s\r\n", BotPass)
-	fmt.Fprintf(conn, "USER %s\r\n", BotNick)
-	fmt.Fprintf(conn, "NICK %s\r\n", BotNick)
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("Connected to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
-	return conn, nil
-}
-
-// Connect basic connection
-/*
-func (bot *Bot) Connect() (conn net.Conn, err error) {
-	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
-	if err != nil {
-		log.Fatal("unable to connect to IRC server ", err)
-	}
-	bot.conn = conn
-	fmt.Fprintf(bot.conn, "PASS %s\r\n", BotPass)
-	fmt.Fprintf(bot.conn, "USER %s\r\n", BotNick)
-	fmt.Fprintf(bot.conn, "NICK %s\r\n", BotNick)
-	fmt.Fprintf(bot.conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
-	fmt.Fprintf(bot.conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("Connected to IRC server %s (%s)\n", bot.server, bot.conn.RemoteAddr())
-	return bot.conn, nil
-}
-*/
-
-func main() {
-	ircbot := NewBot()
-	go TCPServer(ircbot)
-	/*
-		conn, _ := ircbot.Connect()
-		defer conn.Close()
-	*/
-	conn, err := ircbot.CreateConnection()
-	fmt.Printf("conn:%s\n", conn)
-	fmt.Printf("err:%s\n", err)
-	ircbot.connlist = append(ircbot.connlist, conn)
-	fmt.Printf("connlist:%s\n", ircbot.connlist)
-	defer conn.Close()
-
+func (bot *Bot) ListenToConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 	for {
@@ -88,20 +50,52 @@ func main() {
 			pongdata := strings.Split(line, "PING ")
 			fmt.Fprintf(conn, "PONG %s\r\n", pongdata[1])
 		}
-		ircbot.Handle(line)
+		bot.Handle(line)
+	}
+}
+
+// Add a new connection
+func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
+	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
+	if err != nil {
+		log.Fatal("unable to connect to IRC server ", err)
+		return nil, err
+	}
+	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
+	fmt.Fprintf(conn, "USER %s\r\n", bot.nick)
+	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
+	log.Printf("Connected to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+
+	bot.connlist = append(bot.connlist, conn)
+
+	if len(bot.connlist) == 1 {
+		bot.mainconn = conn
 	}
 
+	go bot.ListenToConnection(conn)
+
+	return conn, nil
+}
+
+func main() {
+	ret := TCPServer()
+	log.Printf("got ret code %d\n", ret)
+	os.Exit(ret)
 }
 
 // HandleJoin will slowly join all channels given
 // 45 per 11 seconds to deal with twitch ratelimits
 func (bot *Bot) HandleJoin(channels []string) {
+	if bot.mainconn == nil {
+		log.Printf("No main conn set, can't join channels yet.\n")
+		return
+	}
+
 	for _, channel := range channels {
-		for _, conn := range bot.connlist {
-			fmt.Println("Joining " + channel)
-			fmt.Println(conn)
-			fmt.Fprintf(conn, "JOIN %s\r\n", channel)
-		}
+		log.Printf("Joining %s\n", channel)
+		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
 	}
 }
 
@@ -110,9 +104,10 @@ func (bot *Bot) Message(channel string, message string) {
 	if message == "" {
 		return
 	}
-	fmt.Printf("Bot: " + message + "\n")
+	log.Printf("Sending message: %s\n", message)
 
-	/* Find a suitable connection to use */
+	// TODO: Find a suitable connection to use.
+	// This is where the rate limiting logic would begin
 	for _, conn := range bot.connlist {
 		fmt.Fprintf(conn, "PRIVMSG %s :%s\r\n", channel, message)
 	}
@@ -121,7 +116,6 @@ func (bot *Bot) Message(channel string, message string) {
 // Handle handles messages from irc
 func (bot *Bot) Handle(line string) {
 	if strings.Contains(line, ".tmi.twitch.tv PRIVMSG ") {
-		fmt.Println("Sending data to inconn!")
 		bot.inconn.Write([]byte(line + "\r\n"))
 		messageTMISplit := strings.Split(line, ".tmi.twitch.tv PRIVMSG ")
 		messageChannelRaw := strings.Split(messageTMISplit[1], " :")
@@ -137,4 +131,11 @@ func (bot *Bot) Handle(line string) {
 // ProcessMessage push message to local irc chat
 func (bot *Bot) ProcessMessage(channel string, message string) {
 	fmt.Println(channel + " ::: " + message)
+}
+
+// WriteToAllConns writes message to all connections for now
+func (bot *Bot) WriteToAllConns(message string) {
+	for _, conn := range bot.connlist {
+		fmt.Fprintf(conn, message+"\r\n")
+	}
 }
