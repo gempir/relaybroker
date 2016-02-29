@@ -27,10 +27,6 @@ func TCPServer() (ret int) {
 		}
 		go handleRequest(conn, bot)
 	}
-
-	fmt.Println("CLOSING TCPServerConnection")
-
-	return 0
 }
 
 // Start reading packets that are sent to the given connection
@@ -55,6 +51,7 @@ func handleRequest(conn net.Conn, bot *Bot) {
 		for _, command := range commands {
 			if command != "" {
 				handleMessage(command, bot)
+				log.Println(command)
 			}
 		}
 	}
@@ -81,6 +78,15 @@ func handleMessage(message string, bot *Bot) {
 
 		if bot.oauth != "" {
 			bot.CreateConnection()
+		}
+	} else if strings.Contains(message, "USER ") {
+		if bot.nick != "" {
+			nickComm := strings.Split(message, "USER ")
+			bot.nick = nickComm[1]
+
+			if bot.oauth != "" {
+				bot.CreateConnection()
+			}
 		}
 	} else if strings.Contains(message, "PRIVMSG ") {
 		privmsgComm := strings.Split(message, "PRIVMSG ")

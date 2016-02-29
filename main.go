@@ -38,6 +38,7 @@ func NewBot() *Bot {
 	}
 }
 
+// ListenToConnection listen
 func (bot *Bot) ListenToConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
@@ -54,7 +55,7 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 	}
 }
 
-// Add a new connection
+// CreateConnection Add a new connection
 func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
 	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
