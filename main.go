@@ -8,6 +8,7 @@ import (
 	"net/textproto"
 	"os"
 	"strings"
+	"time"
 )
 
 // Connection stores messages sent in the last 30 seconds and the connection itself
@@ -23,6 +24,10 @@ func NewConnection(conn net.Conn) Connection {
 		messages: 0,
 	}
 
+}
+
+func (connection *Connection) reduceConnectionMessages() {
+	connection.messages--
 }
 
 // Bot struct for main config
@@ -126,6 +131,7 @@ func (bot *Bot) Message(channel string, message string, proxyconn net.Conn) {
 		if connection.messages < 98 {
 			fmt.Fprintf(connection.conn, "PRIVMSG %s :%s\r\n", channel, message)
 			connection.messages++
+			time.AfterFunc(30*time.Second, connection.reduceConnectionMessages)
 			return
 		}
 	}
