@@ -10,6 +10,21 @@ import (
 	"strings"
 )
 
+// Connection stores messages sent in the last 30 seconds and the connection itself
+type Connection struct {
+	conn     net.Conn
+	messages int
+}
+
+// NewConnection initialize a Connection struct
+func NewConnection(conn net.Conn) Connection {
+	return Connection{
+		conn:     conn,
+		messages: 0,
+	}
+
+}
+
 // Bot struct for main config
 type Bot struct {
 	server      string
@@ -19,9 +34,8 @@ type Bot struct {
 	nick        string
 	inconn      net.Conn
 	mainconn    net.Conn
-	connlist    []net.Conn
+	connlist    []Connection
 	groupconn   net.Conn
-	connmap     map[net.Conn]net.Conn
 }
 
 // NewBot main config
@@ -34,9 +48,8 @@ func NewBot() *Bot {
 		nick:        "",
 		inconn:      nil,
 		mainconn:    nil,
-		connlist:    make([]net.Conn, 0),
+		connlist:    make([]Connection, 0),
 		groupconn:   nil,
-		connmap:     make(map[net.Conn]net.Conn),
 	}
 }
 
@@ -58,9 +71,8 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 }
 
 // CreateConnection Add a new connection
-func (bot *Bot) CreateConnection(proxyconn net.Conn) (conn net.Conn, err error) {
+func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
 	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
-	bot.connmap[proxyconn] = conn
 	if err != nil {
 		log.Fatal("unable to connect to IRC server ", err)
 		return nil, err
@@ -72,7 +84,8 @@ func (bot *Bot) CreateConnection(proxyconn net.Conn) (conn net.Conn, err error) 
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
 	log.Printf("Connected to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
-	bot.connlist = append(bot.connlist, conn)
+	connnection := NewConnection(conn)
+	bot.connlist = append(bot.connlist, connnection)
 
 	if len(bot.connlist) == 1 {
 		bot.mainconn = conn
@@ -108,11 +121,16 @@ func (bot *Bot) Message(channel string, message string, proxyconn net.Conn) {
 		return
 	}
 	log.Printf("Sending message: %s\n", message)
-	log.Println(bot.connmap)
-	if val, ok := bot.connmap[proxyconn]; ok {
-		fmt.Fprintf(val, "PRIVMSG %s :%s\r\n", channel, message)
-	}
 
+	for _, connection := range bot.connlist {
+		if connection.messages < 98 {
+			fmt.Fprintf(connection.conn, "PRIVMSG %s :%s\r\n", channel, message)
+			connection.messages++
+			return
+		}
+	}
+	newConn, _ := bot.CreateConnection()
+	fmt.Fprintf(newConn, "PRIVMSG %s :%s\r\n", channel, message)
 }
 
 // Handle handles messages from irc
@@ -137,7 +155,7 @@ func (bot *Bot) ProcessMessage(channel string, message string) {
 
 // WriteToAllConns writes message to all connections for now
 func (bot *Bot) WriteToAllConns(message string) {
-	for _, conn := range bot.connlist {
-		fmt.Fprintf(conn, message+"\r\n")
+	for _, connection := range bot.connlist {
+		fmt.Fprintf(connection.conn, message+"\r\n")
 	}
 }

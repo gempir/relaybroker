@@ -68,7 +68,7 @@ func handleMessage(message string, bot *Bot, conn net.Conn) {
 		bot.nick = nickComm[1]
 
 		if bot.oauth != "" {
-			bot.CreateConnection(conn)
+			bot.CreateConnection()
 		}
 	} else if strings.Contains(message, "USER ") {
 		if bot.nick != "" {
@@ -76,7 +76,7 @@ func handleMessage(message string, bot *Bot, conn net.Conn) {
 			bot.nick = nickComm[1]
 
 			if bot.oauth != "" {
-				bot.CreateConnection(conn)
+				bot.CreateConnection()
 			}
 		}
 	} else if strings.Contains(message, "PRIVMSG ") {
