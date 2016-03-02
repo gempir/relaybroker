@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"net"
+	"net/textproto"
 	"strings"
 )
 
@@ -35,30 +36,20 @@ func handleRequest(conn net.Conn, bot *Bot) {
 	// Perhaps in bot.ListenToConnection()?
 	defer conn.Close()
 
+	reader := bufio.NewReader(conn)
+	tp := textproto.NewReader(reader)
 	for {
-		buf := make([]byte, 0, 4096)
-		tmp := make([]byte, 256)
-		n, err := conn.Read(tmp)
+		line, err := tp.ReadLine()
 		if err != nil {
-			if err != io.EOF {
-				fmt.Println("Read error:", err)
-			}
-			break
+			fmt.Println("Read error:", err)
 		}
-		buf = append(buf, tmp[:n]...)
-		x := string(buf)
-		commands := strings.Split(x, "\r\n")
-		for _, command := range commands {
-			if command != "" {
-				handleMessage(command, bot)
-				log.Println(command)
-			}
-		}
+		log.Println(line)
+		handleMessage(line, bot, conn)
 	}
 }
 
 // Handle an IRC received from a bot
-func handleMessage(message string, bot *Bot) {
+func handleMessage(message string, bot *Bot, conn net.Conn) {
 	if strings.Contains(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
 		channels := strings.Split(joinComm[1], " ")
@@ -77,7 +68,7 @@ func handleMessage(message string, bot *Bot) {
 		bot.nick = nickComm[1]
 
 		if bot.oauth != "" {
-			bot.CreateConnection()
+			bot.CreateConnection(conn)
 		}
 	} else if strings.Contains(message, "USER ") {
 		if bot.nick != "" {
@@ -85,7 +76,7 @@ func handleMessage(message string, bot *Bot) {
 			bot.nick = nickComm[1]
 
 			if bot.oauth != "" {
-				bot.CreateConnection()
+				bot.CreateConnection(conn)
 			}
 		}
 	} else if strings.Contains(message, "PRIVMSG ") {
@@ -93,7 +84,7 @@ func handleMessage(message string, bot *Bot) {
 		remainingString := strings.Split(privmsgComm[1], " :")
 		channel := remainingString[0]
 		message := remainingString[1]
-		go bot.Message(channel, message)
+		bot.Message(channel, message, conn)
 	} else {
 		log.Printf("Unhandled message: '%s'\n", message)
 		//bot.WriteToAllConns(message)

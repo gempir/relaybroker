@@ -21,6 +21,7 @@ type Bot struct {
 	mainconn    net.Conn
 	connlist    []net.Conn
 	groupconn   net.Conn
+	connmap     map[net.Conn]net.Conn
 }
 
 // NewBot main config
@@ -35,6 +36,7 @@ func NewBot() *Bot {
 		mainconn:    nil,
 		connlist:    make([]net.Conn, 0),
 		groupconn:   nil,
+		connmap:     make(map[net.Conn]net.Conn),
 	}
 }
 
@@ -56,8 +58,9 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 }
 
 // CreateConnection Add a new connection
-func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
+func (bot *Bot) CreateConnection(proxyconn net.Conn) (conn net.Conn, err error) {
 	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
+	bot.connmap[proxyconn] = conn
 	if err != nil {
 		log.Fatal("unable to connect to IRC server ", err)
 		return nil, err
@@ -93,7 +96,6 @@ func (bot *Bot) HandleJoin(channels []string) {
 		log.Printf("No main conn set, can't join channels yet.\n")
 		return
 	}
-
 	for _, channel := range channels {
 		log.Printf("Joining %s\n", channel)
 		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
@@ -101,17 +103,16 @@ func (bot *Bot) HandleJoin(channels []string) {
 }
 
 // Message to send a message
-func (bot *Bot) Message(channel string, message string) {
+func (bot *Bot) Message(channel string, message string, proxyconn net.Conn) {
 	if message == "" {
 		return
 	}
 	log.Printf("Sending message: %s\n", message)
-
-	// TODO: Find a suitable connection to use.
-	// This is where the rate limiting logic would begin
-	for _, conn := range bot.connlist {
-		fmt.Fprintf(conn, "PRIVMSG %s :%s\r\n", channel, message)
+	log.Println(bot.connmap)
+	if val, ok := bot.connmap[proxyconn]; ok {
+		fmt.Fprintf(val, "PRIVMSG %s :%s\r\n", channel, message)
 	}
+
 }
 
 // Handle handles messages from irc
@@ -121,11 +122,11 @@ func (bot *Bot) Handle(line string) {
 		messageTMISplit := strings.Split(line, ".tmi.twitch.tv PRIVMSG ")
 		messageChannelRaw := strings.Split(messageTMISplit[1], " :")
 		channel := messageChannelRaw[0]
-		go bot.ProcessMessage(channel, line)
+		bot.ProcessMessage(channel, line)
 	} else if strings.Contains(line, ":tmi.twitch.tv ROOMSTATE") {
 		messageTMISplit := strings.Split(line, ":tmi.twitch.tv ROOMSTATE ")
 		channel := messageTMISplit[1]
-		go bot.ProcessMessage(channel, line)
+		bot.ProcessMessage(channel, line)
 	}
 }
 
