@@ -125,18 +125,22 @@ func (bot *Bot) Message(channel string, message string, proxyconn net.Conn) {
 	if message == "" {
 		return
 	}
-	log.Printf("Sending message: %s\n", message)
 
-	for _, connection := range bot.connlist {
-		if connection.messages < 98 {
-			fmt.Fprintf(connection.conn, "PRIVMSG %s :%s\r\n", channel, message)
-			connection.messages++
-			time.AfterFunc(30*time.Second, connection.reduceConnectionMessages)
+	for i := 0; i < len(bot.connlist); i++ {
+		if bot.connlist[i].messages < 10 {
+			fmt.Fprintf(bot.connlist[i].conn, "PRIVMSG %s :%s\r\n", channel, message)
+			log.Println(bot.connlist[i])
+			log.Println(bot.connlist[i].messages)
+			bot.connlist[i].messages++
+			log.Println(bot.connlist[i].messages)
+			time.AfterFunc(30*time.Second, bot.connlist[i].reduceConnectionMessages)
 			return
 		}
 	}
+
 	newConn, _ := bot.CreateConnection()
 	fmt.Fprintf(newConn, "PRIVMSG %s :%s\r\n", channel, message)
+	log.Println(newConn)
 }
 
 // Handle handles messages from irc
