@@ -97,6 +97,5 @@ func handleMessage(message string, bot *Bot) {
 		bot.Message(channel, message)
 	} else {
 		log.Printf("Unhandled message: '%s'\n", message)
-		//bot.WriteToAllConns(message)
 	}
 }

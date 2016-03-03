@@ -78,7 +78,7 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 			pongdata := strings.Split(line, "PING ")
 			fmt.Fprintf(conn, "PONG %s\r\n", pongdata[1])
 		}
-		bot.Handle(line)
+		bot.inconn.Write([]byte(line + "\r\n"))
 	}
 }
 
@@ -142,31 +142,4 @@ func (bot *Bot) Message(channel string, message string) {
 	newConn, _ := bot.CreateConnection()
 	fmt.Fprintf(newConn, "PRIVMSG %s :%s\r\n", channel, message)
 	log.Println(newConn)
-}
-
-// Handle handles messages from irc
-func (bot *Bot) Handle(line string) {
-	if strings.Contains(line, ".tmi.twitch.tv PRIVMSG ") {
-		bot.inconn.Write([]byte(line + "\r\n"))
-		messageTMISplit := strings.Split(line, ".tmi.twitch.tv PRIVMSG ")
-		messageChannelRaw := strings.Split(messageTMISplit[1], " :")
-		channel := messageChannelRaw[0]
-		bot.ProcessMessage(channel, line)
-	} else if strings.Contains(line, ":tmi.twitch.tv ROOMSTATE") {
-		messageTMISplit := strings.Split(line, ":tmi.twitch.tv ROOMSTATE ")
-		channel := messageTMISplit[1]
-		bot.ProcessMessage(channel, line)
-	}
-}
-
-// ProcessMessage push message to local irc chat
-func (bot *Bot) ProcessMessage(channel string, message string) {
-	fmt.Println(channel + " ::: " + message)
-}
-
-// WriteToAllConns writes message to all connections for now
-func (bot *Bot) WriteToAllConns(message string) {
-	for _, connection := range bot.connlist {
-		fmt.Fprintf(connection.conn, message+"\r\n")
-	}
 }
