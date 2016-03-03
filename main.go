@@ -94,7 +94,7 @@ func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("New Connection: %s (%s)\n", bot.server, conn.RemoteAddr())
+	log.Printf("new Connected to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
 	connnection := NewConnection(conn)
 	bot.connlist = append(bot.connlist, connnection)

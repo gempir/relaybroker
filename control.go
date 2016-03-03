@@ -55,6 +55,9 @@ func handleRequest(conn net.Conn, bot *Bot) {
 
 // Handle an IRC received from a bot
 func handleMessage(message string, bot *Bot) {
+	remoteAddr := bot.inconn.RemoteAddr().String()
+	remoteAddrIP := strings.Split(remoteAddr, ":")
+
 	if strings.Contains(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
 		channels := strings.Split(joinComm[1], " ")
@@ -64,9 +67,11 @@ func handleMessage(message string, bot *Bot) {
 		passwordParts := strings.Split(passComm[1], ";")
 		if passwordParts[0] == TCPPass {
 			bot.oauth = passwordParts[1]
-			remoteAddr := bot.inconn.RemoteAddr().String()
-			remoteAddrIP := strings.Split(remoteAddr, ":")
 			log.Printf("Authenticated! %s\n", remoteAddrIP)
+		} else {
+			log.Printf("Invalid broker pass! %s\n", remoteAddrIP)
+			bot.inconn.Close()
+			return
 		}
 	} else if strings.Contains(message, "NICK ") {
 		nickComm := strings.Split(message, "NICK ")
