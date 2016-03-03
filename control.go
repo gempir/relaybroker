@@ -25,6 +25,7 @@ func TCPServer() (ret int) {
 		bot.inconn = conn
 		if err != nil {
 			fmt.Println("Error accepting: ", err.Error())
+			return 1
 		}
 		go handleRequest(conn, bot)
 	}
@@ -40,16 +41,20 @@ func handleRequest(conn net.Conn, bot *Bot) {
 	tp := textproto.NewReader(reader)
 	for {
 		line, err := tp.ReadLine()
+
 		if err != nil {
 			fmt.Println("Read error:", err)
+			fmt.Fprintf(conn, "Read error: %s", err)
+			conn.Close()
+			return
 		}
 		log.Println(line)
-		handleMessage(line, bot, conn)
+		handleMessage(line, bot)
 	}
 }
 
 // Handle an IRC received from a bot
-func handleMessage(message string, bot *Bot, conn net.Conn) {
+func handleMessage(message string, bot *Bot) {
 	if strings.Contains(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
 		channels := strings.Split(joinComm[1], " ")
@@ -84,7 +89,7 @@ func handleMessage(message string, bot *Bot, conn net.Conn) {
 		remainingString := strings.Split(privmsgComm[1], " :")
 		channel := remainingString[0]
 		message := remainingString[1]
-		bot.Message(channel, message, conn)
+		bot.Message(channel, message)
 	} else {
 		log.Printf("Unhandled message: '%s'\n", message)
 		//bot.WriteToAllConns(message)

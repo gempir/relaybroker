@@ -130,7 +130,7 @@ func (bot *Bot) HandleJoin(channels []string) {
 }
 
 // Message to send a message
-func (bot *Bot) Message(channel string, message string, proxyconn net.Conn) {
+func (bot *Bot) Message(channel string, message string) {
 	if message == "" {
 		return
 	}
