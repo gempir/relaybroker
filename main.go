@@ -32,11 +32,9 @@ func (connection *Connection) reduceConnectionMessages() {
 
 // Message called everytime you send a message
 func (connection *Connection) Message(channel string, message string) {
-	log.Println(connection.conn)
 	fmt.Fprintf(connection.conn, "PRIVMSG %s :%s\r\n", channel, message)
 	connection.messages++
 	time.AfterFunc(30*time.Second, connection.reduceConnectionMessages)
-	log.Println(connection.messages)
 }
 
 // Bot struct for main config
@@ -96,7 +94,7 @@ func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("Connected to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+	log.Printf("New Connection: %s (%s)\n", bot.server, conn.RemoteAddr())
 
 	connnection := NewConnection(conn)
 	bot.connlist = append(bot.connlist, connnection)
