@@ -30,6 +30,15 @@ func (connection *Connection) reduceConnectionMessages() {
 	connection.messages--
 }
 
+// Message called everytime you send a message
+func (connection *Connection) Message(channel string, message string) {
+	log.Println(connection.conn)
+	fmt.Fprintf(connection.conn, "PRIVMSG %s :%s\r\n", channel, message)
+	connection.messages++
+	time.AfterFunc(30*time.Second, connection.reduceConnectionMessages)
+	log.Println(connection.messages)
+}
+
 // Bot struct for main config
 type Bot struct {
 	server      string
@@ -127,17 +136,11 @@ func (bot *Bot) Message(channel string, message string, proxyconn net.Conn) {
 	}
 
 	for i := 0; i < len(bot.connlist); i++ {
-		if bot.connlist[i].messages < 10 {
-			fmt.Fprintf(bot.connlist[i].conn, "PRIVMSG %s :%s\r\n", channel, message)
-			log.Println(bot.connlist[i])
-			log.Println(bot.connlist[i].messages)
-			bot.connlist[i].messages++
-			log.Println(bot.connlist[i].messages)
-			time.AfterFunc(30*time.Second, bot.connlist[i].reduceConnectionMessages)
+		if bot.connlist[i].messages < 90 {
+			bot.connlist[i].Message(channel, message)
 			return
 		}
 	}
-
 	newConn, _ := bot.CreateConnection()
 	fmt.Fprintf(newConn, "PRIVMSG %s :%s\r\n", channel, message)
 	log.Println(newConn)
