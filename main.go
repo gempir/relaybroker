@@ -109,6 +109,7 @@ func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
 }
 
 func main() {
+	log.SetOutput(os.Stdout)
 	ret := TCPServer()
 	log.Printf("got ret code %d\n", ret)
 	os.Exit(ret)
