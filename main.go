@@ -74,9 +74,9 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 		if err != nil {
 			break // break loop on errors
 		}
-		if strings.Contains(line, "PING") {
-			pongdata := strings.Split(line, "PING ")
-			fmt.Fprintf(conn, "PONG %s\r\n", pongdata[1])
+		if strings.Contains(line, "PING ") {
+			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
+			log.Printf("PONG tmi.twitch.tv\r\n")
 		}
 		bot.inconn.Write([]byte(line + "\r\n"))
 	}
