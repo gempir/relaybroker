@@ -37,6 +37,10 @@ func (connection *Connection) Message(channel string, message string) {
 	time.AfterFunc(30*time.Second, connection.reduceConnectionMessages)
 }
 
+func (bot *Bot) reduceJoins() {
+	bot.joins--
+}
+
 // Bot struct for main config
 type Bot struct {
 	server      string
@@ -48,6 +52,8 @@ type Bot struct {
 	mainconn    net.Conn
 	connlist    []Connection
 	groupconn   net.Conn
+	joins       int
+	toJoin      []string
 }
 
 // NewBot main config
@@ -62,6 +68,15 @@ func NewBot() *Bot {
 		mainconn:    nil,
 		connlist:    make([]Connection, 0),
 		groupconn:   nil,
+		joins:       0,
+	}
+}
+
+func (bot *Bot) join(channel string) {
+	if bot.joins < 42 {
+		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
+		bot.joins++
+		time.AfterFunc(10*time.Second, bot.reduceJoins)
 	}
 }
 
@@ -113,19 +128,6 @@ func main() {
 	ret := TCPServer()
 	log.Printf("got ret code %d\n", ret)
 	os.Exit(ret)
-}
-
-// HandleJoin will slowly join all channels given
-// 45 per 11 seconds to deal with twitch ratelimits
-func (bot *Bot) HandleJoin(channels []string) {
-	if bot.mainconn == nil {
-		log.Printf("No main conn set, can't join channels yet.\n")
-		return
-	}
-	for _, channel := range channels {
-		log.Printf("Joining %s\n", channel)
-		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
-	}
 }
 
 // Message to send a message

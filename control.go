@@ -60,8 +60,7 @@ func handleMessage(message string, bot *Bot) {
 
 	if strings.Contains(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
-		channels := strings.Split(joinComm[1], " ")
-		bot.HandleJoin(channels)
+		bot.join(joinComm[1])
 	} else if strings.Contains(message, "PASS ") {
 		passComm := strings.Split(message, "PASS ")
 		passwordParts := strings.Split(passComm[1], ";")
