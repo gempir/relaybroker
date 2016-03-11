@@ -48,6 +48,7 @@ func handleRequest(conn net.Conn, bot *Bot) {
 			conn.Close()
 			return
 		}
+		log.Println(line)
 		handleMessage(line, bot)
 	}
 }
