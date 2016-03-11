@@ -1,5 +1,4 @@
 # Ignore binary files
 main.exe
-gempbroker
-gempbroker.exe
-gempbroker.exe~
+relaybroker
+relaybroker.exe
