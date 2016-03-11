@@ -91,7 +91,7 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error reading from Connection: %s", err)
 			break // break loop on errors
 		}
 		if strings.Contains(line, "PING ") {
