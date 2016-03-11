@@ -52,6 +52,7 @@ type Bot struct {
 	inconn          net.Conn
 	mainconn        net.Conn
 	connlist        []Connection
+	connactive      bool
 	groupconn       net.Conn
 	groupconnactive bool
 	joins           int
@@ -70,6 +71,7 @@ func NewBot() *Bot {
 		inconn:          nil,
 		mainconn:        nil,
 		connlist:        make([]Connection, 0),
+		connactive:      false,
 		groupconn:       nil,
 		groupconnactive: false,
 		joins:           0,
@@ -77,6 +79,11 @@ func NewBot() *Bot {
 }
 
 func (bot *Bot) join(channel string) {
+	for !bot.connactive {
+		log.Printf("chat connection not active yet")
+		time.Sleep(time.Second)
+	}
+
 	if bot.joins < 42 {
 		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
 		bot.joins++
@@ -93,6 +100,9 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 		if err != nil {
 			log.Printf("Error reading from Connection: %s", err)
 			break // break loop on errors
+		}
+		if strings.Contains(line, "tmi.twitch.tv 001") {
+			bot.connactive = true
 		}
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
@@ -179,6 +189,10 @@ func main() {
 func (bot *Bot) Message(channel string, message string) {
 	if message == "" {
 		return
+	}
+	for !bot.connactive {
+		log.Printf("chat connection not active yet")
+		time.Sleep(time.Second)
 	}
 
 	for i := 0; i < len(bot.connlist); i++ {
