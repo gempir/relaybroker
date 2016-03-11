@@ -110,15 +110,17 @@ func (bot *Bot) ListenToGroupConnection(conn net.Conn) {
 		line, err := tp.ReadLine()
 		if err != nil {
 			log.Fatal(err)
-			break // break loop on errors
+			bot.CreateGroupConnection()
+			break
 		}
-		if strings.Contains(line, ":tmi.twitch.tv 001") {
+		if strings.Contains(line, "tmi.twitch.tv 001") {
 			bot.groupconnactive = true
 		}
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
 			log.Printf("PONG tmi.twitch.tv\r\n")
 		}
+		log.Printf(line)
 		bot.inconn.Write([]byte(line + "\r\n"))
 	}
 }
@@ -162,7 +164,7 @@ func (bot *Bot) CreateGroupConnection() {
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
 	log.Printf("new connection to Group IRC server %s (%s)\n", bot.groupserver, conn.RemoteAddr())
-	fmt.Fprintf(conn, "JOIN #jtv\r\n")
+
 	bot.groupconn = conn
 
 	go bot.ListenToGroupConnection(conn)
@@ -170,9 +172,7 @@ func (bot *Bot) CreateGroupConnection() {
 
 func main() {
 	log.SetOutput(os.Stdout)
-	ret := TCPServer()
-	log.Printf("got ret code %d\n", ret)
-	os.Exit(ret)
+	TCPServer()
 }
 
 // Message to send a message
@@ -194,12 +194,10 @@ func (bot *Bot) Message(channel string, message string) {
 
 // Whisper to send whispers
 func (bot *Bot) Whisper(username string, message string) {
-	if !bot.groupconnactive {
+	for !bot.groupconnactive {
 		log.Printf("group connection not active yet")
 		time.Sleep(time.Second)
-		bot.Whisper(username, message)
-		return
 	}
-	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :/w "+username+" "+message)
+	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :/w "+username+" "+message+"\r\n")
 	log.Printf("/w " + username + " " + message)
 }
