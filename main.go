@@ -109,7 +109,7 @@ func (bot *Bot) ListenToGroupConnection(conn net.Conn) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error reading from Connection: %s", err)
 			bot.CreateGroupConnection()
 			break
 		}
@@ -193,11 +193,11 @@ func (bot *Bot) Message(channel string, message string) {
 }
 
 // Whisper to send whispers
-func (bot *Bot) Whisper(username string, message string) {
+func (bot *Bot) Whisper(message string) {
 	for !bot.groupconnactive {
 		log.Printf("group connection not active yet")
 		time.Sleep(time.Second)
 	}
-	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :/w "+username+" "+message+"\r\n")
-	log.Printf("/w " + username + " " + message)
+	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :"+message+"\r\n")
+	log.Printf(message)
 }

@@ -90,12 +90,8 @@ func handleMessage(message string, bot *Bot) {
 			}
 		}
 	} else if strings.Contains(message, "PRIVMSG #jtv :/w ") {
-		privmsgComm := strings.Split(message, "PRIVMSG #jtv :/w ")
-		remainingString := strings.Split(privmsgComm[1], " ")
-		username := remainingString[0]
-		messageSplit := strings.Split(privmsgComm[1], username+" ")
-		message := messageSplit[1]
-		bot.Whisper(username, message)
+		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
+		bot.Whisper(privmsgComm[1])
 	} else if strings.Contains(message, "PRIVMSG ") {
 		privmsgComm := strings.Split(message, "PRIVMSG ")
 		remainingString := strings.Split(privmsgComm[1], " :")
