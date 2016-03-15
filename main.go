@@ -62,9 +62,9 @@ type Bot struct {
 // NewBot main config
 func NewBot() *Bot {
 	return &Bot{
-		server:          "irc.twitch.tv",
+		server:          "irc.chat.twitch.tv",
 		groupserver:     "group.tmi.twitch.tv",
-		port:            "6667",
+		port:            "80",
 		groupport:       "6667",
 		oauth:           "",
 		nick:            "",
@@ -98,7 +98,8 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Printf("Error reading from Connection: %s", err)
+			log.Printf("Error reading from chat connection: %s", err)
+			bot.CreateConnection()
 			break // break loop on errors
 		}
 		if strings.Contains(line, "tmi.twitch.tv 001") {
@@ -119,7 +120,7 @@ func (bot *Bot) ListenToGroupConnection(conn net.Conn) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Printf("Error reading from Connection: %s", err)
+			log.Printf("Error reading from group connection: %s", err)
 			bot.CreateGroupConnection()
 			break
 		}
@@ -136,18 +137,19 @@ func (bot *Bot) ListenToGroupConnection(conn net.Conn) {
 }
 
 // CreateConnection Add a new connection
-func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
-	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
+func (bot *Bot) CreateConnection() {
+	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
-		log.Fatal("unable to connect to IRC server ", err)
-		return nil, err
+		log.Println("unable to connect to chat IRC server ", err)
+		bot.CreateConnection()
+		return
 	}
 	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
 	fmt.Fprintf(conn, "USER %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("new connection to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+	log.Printf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
 	connnection := NewConnection(conn)
 	bot.connlist = append(bot.connlist, connnection)
@@ -158,14 +160,14 @@ func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
 
 	go bot.ListenToConnection(conn)
 
-	return conn, nil
 }
 
 // CreateGroupConnection creates connection to recevie and send whispers
 func (bot *Bot) CreateGroupConnection() {
 	conn, err := net.Dial("tcp", bot.groupserver+":"+bot.groupport)
 	if err != nil {
-		log.Fatal("unable to connect to IRC server ", err)
+		log.Println("unable to connect to group IRC server ", err)
+		bot.CreateGroupConnection()
 		return
 	}
 	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
@@ -173,7 +175,7 @@ func (bot *Bot) CreateGroupConnection() {
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("new connection to Group IRC server %s (%s)\n", bot.groupserver, conn.RemoteAddr())
+	log.Printf("new connection to group IRC server %s (%s)\n", bot.groupserver, conn.RemoteAddr())
 
 	bot.groupconn = conn
 
@@ -187,29 +189,28 @@ func main() {
 
 // Message to send a message
 func (bot *Bot) Message(channel string, message string) {
-	if message == "" {
-		return
-	}
 	for !bot.connactive {
-		log.Printf("chat connection not active yet")
+		log.Println("chat connection not active yet")
 		time.Sleep(time.Second)
 	}
 
 	for i := 0; i < len(bot.connlist); i++ {
 		if bot.connlist[i].messages < 90 {
 			bot.connlist[i].Message(channel, message)
+			log.Println(channel + " " + message)
 			return
 		}
 	}
-	newConn, _ := bot.CreateConnection()
-	fmt.Fprintf(newConn, "PRIVMSG %s :%s\r\n", channel, message)
-	log.Println(newConn)
+	// open new connection when others too full
+	bot.CreateConnection()
+	log.Printf("opened new connection, total: %d", len(bot.connlist))
+	bot.Message(channel, message)
 }
 
 // Whisper to send whispers
 func (bot *Bot) Whisper(message string) {
 	for !bot.groupconnactive {
-		log.Printf("group connection not active yet")
+		log.Println("group connection not active yet")
 		time.Sleep(time.Second)
 	}
 	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :"+message+"\r\n")
