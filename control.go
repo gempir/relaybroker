@@ -75,7 +75,7 @@ func handleMessage(message string, bot *Bot) {
 
 		if bot.oauth != "" {
 			bot.CreateConnection()
-			bot.CreateGroupConnection()
+			go bot.CreateGroupConnection()
 		}
 	} else if strings.Contains(message, "USER ") {
 		if bot.nick != "" {
@@ -84,12 +84,12 @@ func handleMessage(message string, bot *Bot) {
 
 			if bot.oauth != "" {
 				bot.CreateConnection()
-				bot.CreateGroupConnection()
+				go bot.CreateGroupConnection()
 			}
 		}
 	} else if strings.Contains(message, "PRIVMSG #jtv :/w ") {
 		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
-		bot.Whisper(privmsgComm[1])
+		go bot.Whisper(privmsgComm[1])
 	} else {
 		bot.Message(message)
 	}
