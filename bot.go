@@ -141,6 +141,7 @@ func (bot *Bot) CreateConnection() {
 
 // CreateGroupConnection creates connection to recevie and send whispers
 func (bot *Bot) CreateGroupConnection() {
+	log.Println("trying to open group conn")
 	conn, err := net.Dial("tcp", bot.groupserver+":"+bot.groupport)
 	if err != nil {
 		log.Println("unable to connect to group IRC server ", err)
