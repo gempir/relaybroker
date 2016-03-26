@@ -57,10 +57,12 @@ func (bot *Bot) join(channel string) {
 		time.Sleep(time.Second)
 	}
 
-	if bot.joins < 42 {
+	if bot.joins < 45 {
 		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
 		bot.joins++
 		time.AfterFunc(10*time.Second, bot.reduceJoins)
+	} else {
+		bot.join(channel)
 	}
 }
 
@@ -157,8 +159,7 @@ func (bot *Bot) CreateGroupConnection() {
 // Message to send a message
 func (bot *Bot) Message(message string) {
 	for !bot.connactive {
-		log.Println("chat connection not active yet")
-		time.Sleep(time.Second)
+		// wait for connection to become active
 	}
 
 	for i := 0; i < len(bot.connlist); i++ {
@@ -176,8 +177,7 @@ func (bot *Bot) Message(message string) {
 // Whisper to send whispers
 func (bot *Bot) Whisper(message string) {
 	for !bot.groupconnactive {
-		log.Println("group connection not active yet")
-		time.Sleep(time.Second)
+		// wait for connection to become active
 	}
 	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :"+message+"\r\n")
 	log.Printf(message)
