@@ -59,9 +59,12 @@ func (bot *Bot) join(channel string) {
 
 	if bot.joins < 45 {
 		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
+		log.Printf("[chat] joined %s", channel)
 		bot.joins++
 		time.AfterFunc(10*time.Second, bot.reduceJoins)
 	} else {
+		log.Printf("[chat] in queue to join %s", channel)
+		time.Sleep(time.Second)
 		bot.join(channel)
 	}
 }
