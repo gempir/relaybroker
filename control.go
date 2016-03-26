@@ -13,10 +13,10 @@ import (
 func TCPServer() (ret int) {
 	ln, err := net.Listen("tcp", ":"+TCPPort)
 	if err != nil {
-		log.Println("Error listening:", err.Error())
+		log.Println("[control] error listening:", err.Error())
 		return 1
 	}
-	log.Printf("Listening to port %s for connections...", TCPPort)
+	log.Printf("[control] listening to port %s for connections...", TCPPort)
 	defer ln.Close()
 
 	for {
@@ -24,17 +24,14 @@ func TCPServer() (ret int) {
 		bot := NewBot()
 		bot.inconn = conn
 		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
+			fmt.Println("[control] error accepting: ", err.Error())
 			return 1
 		}
 		go handleRequest(conn, bot)
 	}
 }
 
-// Start reading packets that are sent to the given connection
 func handleRequest(conn net.Conn, bot *Bot) {
-	// XXX(pajlada): Not sure if this is where we should close the connection or not
-	// Perhaps in bot.ListenToConnection()?
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
@@ -43,12 +40,12 @@ func handleRequest(conn net.Conn, bot *Bot) {
 		line, err := tp.ReadLine()
 
 		if err != nil {
-			fmt.Println("Read error:", err)
-			fmt.Fprintf(conn, "Read error: %s", err)
+			fmt.Println("[control] read error:", err)
+			fmt.Fprintf(conn, "[control] read error: %s", err)
 			conn.Close()
 			return
 		}
-		log.Println(line)
+		log.Println("[control] " + line)
 		handleMessage(line, bot)
 	}
 }
@@ -66,9 +63,9 @@ func handleMessage(message string, bot *Bot) {
 		passwordParts := strings.Split(passComm[1], ";")
 		if passwordParts[0] == TCPPass {
 			bot.oauth = passwordParts[1]
-			log.Printf("Authenticated! %s\n", remoteAddrIP)
+			log.Printf("[control] authenticated! %s\n", remoteAddrIP)
 		} else {
-			log.Printf("Invalid broker pass! %s\n", remoteAddrIP)
+			log.Printf("[control] invalid broker pass! %s\n", remoteAddrIP)
 			bot.inconn.Close()
 			return
 		}
@@ -93,13 +90,7 @@ func handleMessage(message string, bot *Bot) {
 	} else if strings.Contains(message, "PRIVMSG #jtv :/w ") {
 		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
 		bot.Whisper(privmsgComm[1])
-	} else if strings.Contains(message, "PRIVMSG ") {
-		privmsgComm := strings.Split(message, "PRIVMSG ")
-		remainingString := strings.Split(privmsgComm[1], " :")
-		channel := remainingString[0]
-		message := remainingString[1]
-		bot.Message(channel, message)
 	} else {
-		log.Printf("Unhandled message: '%s'\n", message)
+		bot.Message(message)
 	}
 }
