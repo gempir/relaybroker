@@ -38,7 +38,7 @@ func NewBot() *Bot {
 		server:          "irc.chat.twitch.tv",
 		groupserver:     "group.tmi.twitch.tv",
 		port:            "80",
-		groupport:       "6667",
+		groupport:       "443",
 		oauth:           "",
 		nick:            "",
 		inconn:          nil,
