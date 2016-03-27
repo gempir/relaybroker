@@ -159,6 +159,7 @@ func (bot *Bot) CreateGroupConnection() {
 
 // Message to send a message
 func (bot *Bot) Message(message string) {
+	message = strings.TrimSpace(message)
 	for !bot.connactive {
 		// wait for connection to become active
 	}
