@@ -75,6 +75,10 @@ func handleMessage(message string, bot *Bot) {
 
 		if bot.oauth != "" {
 			bot.CreateConnection()
+			go bot.CreateConnection()
+			go bot.CreateConnection()
+			go bot.CreateConnection()
+			go bot.CreateConnection()
 			go bot.CreateGroupConnection()
 		}
 	} else if strings.Contains(message, "USER ") {
@@ -84,6 +88,10 @@ func handleMessage(message string, bot *Bot) {
 
 			if bot.oauth != "" {
 				bot.CreateConnection()
+				go bot.CreateConnection()
+				go bot.CreateConnection()
+				go bot.CreateConnection()
+				go bot.CreateConnection()
 				go bot.CreateGroupConnection()
 			}
 		}

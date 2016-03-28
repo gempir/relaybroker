@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/textproto"
 	"strings"
@@ -157,13 +158,21 @@ func (bot *Bot) CreateGroupConnection() {
 	go bot.ListenToGroupConnection(conn)
 }
 
+// shuffle simple array shuffle functino
+func shuffle(a []Connection) {
+	for i := range a {
+		j := rand.Intn(i + 1)
+		a[i], a[j] = a[j], a[i]
+	}
+}
+
 // Message to send a message
 func (bot *Bot) Message(message string) {
 	message = strings.TrimSpace(message)
 	for !bot.connactive {
 		// wait for connection to become active
 	}
-
+	shuffle(bot.connlist)
 	for i := 0; i < len(bot.connlist); i++ {
 		if bot.connlist[i].messages < 90 {
 			bot.connlist[i].Message(message)
