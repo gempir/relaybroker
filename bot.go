@@ -87,7 +87,7 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
 		}
-		bot.inconn.Write([]byte(line))
+		fmt.Fprintf(bot.inconn, line+"\r\n")
 	}
 }
 
@@ -108,7 +108,7 @@ func (bot *Bot) ListenToGroupConnection(conn net.Conn) {
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
 		}
-		bot.inconn.Write([]byte(line + "\r\n"))
+		fmt.Fprintf(bot.inconn, line+"\r\n")
 	}
 }
 
