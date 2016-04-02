@@ -70,6 +70,15 @@ func (bot *Bot) join(channel string) {
 	}
 }
 
+func (bot *Bot) part(channel string) {
+	for !bot.connactive {
+		log.Printf("chat connection not active yet")
+		time.Sleep(time.Second)
+	}
+	fmt.Fprintf(bot.mainconn, "PART %s\r\n", channel)
+	log.Printf("[chat] parted %s", channel)
+}
+
 // ListenToConnection listen
 func (bot *Bot) ListenToConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)

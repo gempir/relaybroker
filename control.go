@@ -55,10 +55,13 @@ func handleMessage(message string, bot *Bot) {
 	remoteAddr := bot.inconn.RemoteAddr().String()
 	remoteAddrIP := strings.Split(remoteAddr, ":")
 
-	if strings.Contains(message, "JOIN ") {
+	if strings.HasPrefix(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
 		go bot.join(joinComm[1])
-	} else if strings.Contains(message, "PASS ") {
+	} else if strings.HasPrefix(message, "PART ") {
+		partComm := strings.Split(message, "PART ")
+		go bot.part(partComm[1])
+	} else if strings.HasPrefix(message, "PASS ") {
 		passComm := strings.Split(message, "PASS ")
 		passwordParts := strings.Split(passComm[1], ";")
 		if passwordParts[0] == TCPPass {
@@ -69,7 +72,7 @@ func handleMessage(message string, bot *Bot) {
 			bot.inconn.Close()
 			return
 		}
-	} else if strings.Contains(message, "NICK ") {
+	} else if strings.HasPrefix(message, "NICK ") {
 		nickComm := strings.Split(message, "NICK ")
 		bot.nick = nickComm[1]
 
@@ -81,7 +84,7 @@ func handleMessage(message string, bot *Bot) {
 			go bot.CreateConnection()
 			go bot.CreateGroupConnection()
 		}
-	} else if strings.Contains(message, "USER ") {
+	} else if strings.HasPrefix(message, "USER ") {
 		if bot.nick != "" {
 			nickComm := strings.Split(message, "USER ")
 			bot.nick = nickComm[1]
@@ -95,7 +98,7 @@ func handleMessage(message string, bot *Bot) {
 				go bot.CreateGroupConnection()
 			}
 		}
-	} else if strings.Contains(message, "PRIVMSG #jtv :/w ") {
+	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {
 		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
 		go bot.Whisper(privmsgComm[1])
 	} else {
