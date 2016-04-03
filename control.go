@@ -85,7 +85,7 @@ func handleMessage(message string, bot *Bot) {
 			go bot.CreateGroupConnection()
 		}
 	} else if strings.HasPrefix(message, "USER ") {
-		if bot.nick != "" {
+		if bot.nick == "" {
 			nickComm := strings.Split(message, "USER ")
 			bot.nick = nickComm[1]
 
