@@ -129,6 +129,7 @@ func (bot *Bot) CreateConnection() {
 		bot.CreateConnection()
 		return
 	}
+
 	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
 	fmt.Fprintf(conn, "USER %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
@@ -144,7 +145,6 @@ func (bot *Bot) CreateConnection() {
 	}
 
 	go bot.ListenToConnection(conn)
-
 }
 
 // CreateGroupConnection creates connection to recevie and send whispers
