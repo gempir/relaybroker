@@ -209,10 +209,14 @@ func (bot *Bot) Close() {
 	bot.inconn.Close()
 
 	// Close the group connection
-	bot.groupconn.Close()
+	if bot.groupconn != nil {
+		bot.groupconn.Close()
+	}
 
 	// Close the read connectin
-	bot.mainconn.Close()
+	if bot.mainconn != nil {
+		bot.mainconn.Close()
+	}
 
 	// Close all listens connections
 	for i := 0; i < len(bot.connlist); i++ {
