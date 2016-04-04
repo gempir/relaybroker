@@ -198,6 +198,8 @@ func (bot *Bot) Message(message string) {
 func (bot *Bot) Whisper(message string) {
 	for !bot.groupconnactive {
 		// wait for connection to become active
+		log.Printf("group connection not active yet [%s]\n", bot.nick)
+		time.Sleep(time.Second)
 	}
 	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :"+message+"\r\n")
 	log.Printf(message)
