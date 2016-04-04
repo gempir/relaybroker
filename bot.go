@@ -202,3 +202,20 @@ func (bot *Bot) Whisper(message string) {
 	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :"+message+"\r\n")
 	log.Printf(message)
 }
+
+// Clean up bot things
+func (bot *Bot) Close() {
+	// Close the in connection
+	bot.inconn.Close()
+
+	// Close the group connection
+	bot.groupconn.Close()
+
+	// Close the read connectin
+	bot.mainconn.Close()
+
+	// Close all listens connections
+	for i := 0; i < len(bot.connlist); i++ {
+		bot.connlist[i].conn.Close()
+	}
+}

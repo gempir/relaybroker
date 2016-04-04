@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var botlist []*Bot
+
 // TCPServer simple tcp server for commands
 func TCPServer() (ret int) {
 	ln, err := net.Listen("tcp", ":"+TCPPort)
@@ -23,6 +25,7 @@ func TCPServer() (ret int) {
 		conn, err := ln.Accept()
 		bot := NewBot()
 		bot.inconn = conn
+		botlist = append(botlist, bot)
 		if err != nil {
 			fmt.Println("[control] error accepting: ", err.Error())
 			return 1
@@ -31,8 +34,23 @@ func TCPServer() (ret int) {
 	}
 }
 
+func CloseBot(bot *Bot) {
+	// Iterate over the list of bots
+	for i := range botlist {
+		if bot == botlist[i] {
+			// Remove the closed bot from the list
+			botlist = append(botlist[:i], botlist[i+1:]...)
+			return
+		}
+	}
+
+	// Let the bot clean itself up
+	bot.Close()
+}
+
 func handleRequest(conn net.Conn, bot *Bot) {
-	defer conn.Close()
+	defer CloseBot(bot)
+	defer bot.Close()
 
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
