@@ -54,7 +54,7 @@ func NewBot() *Bot {
 
 func (bot *Bot) join(channel string) {
 	for !bot.connactive {
-		log.Printf("chat connection not active yet")
+		log.Printf("chat connection not active yet [%s]\n", bot.nick)
 		time.Sleep(time.Second)
 	}
 
