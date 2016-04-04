@@ -63,7 +63,9 @@ func handleRequest(conn net.Conn, bot *Bot) {
 			conn.Close()
 			return
 		}
-		log.Println("[control] " + line)
+		if !strings.HasPrefix(line, "PASS ") {
+			log.Println("[control] " + line)
+		}
 		handleMessage(line, bot)
 	}
 }
