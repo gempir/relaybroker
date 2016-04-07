@@ -17,38 +17,30 @@ func (bot *Bot) reduceJoins() {
 
 // Bot struct for main config
 type Bot struct {
-	server          string
-	groupserver     string
-	port            string
-	groupport       string
-	oauth           string
-	nick            string
-	inconn          net.Conn
-	mainconn        net.Conn
-	connlist        []Connection
-	connactive      bool
-	groupconn       net.Conn
-	groupconnactive bool
-	joins           int
-	toJoin          []string
+	server     string
+	port       string
+	oauth      string
+	nick       string
+	inconn     net.Conn
+	mainconn   net.Conn
+	connlist   []Connection
+	connactive bool
+	joins      int
+	toJoin     []string
 }
 
 // NewBot main config
 func NewBot() *Bot {
 	return &Bot{
-		server:          "irc.chat.twitch.tv",
-		groupserver:     "group.tmi.twitch.tv",
-		port:            "80",
-		groupport:       "443",
-		oauth:           "",
-		nick:            "",
-		inconn:          nil,
-		mainconn:        nil,
-		connlist:        make([]Connection, 0),
-		connactive:      false,
-		groupconn:       nil,
-		groupconnactive: false,
-		joins:           0,
+		server:     "irc.chat.twitch.tv",
+		port:       "80",
+		oauth:      "",
+		nick:       "",
+		inconn:     nil,
+		mainconn:   nil,
+		connlist:   make([]Connection, 0),
+		connactive: false,
+		joins:      0,
 	}
 }
 
@@ -100,27 +92,6 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 	}
 }
 
-// ListenToGroupConnection validate connection is running and listen to it
-func (bot *Bot) ListenToGroupConnection(conn net.Conn) {
-	reader := bufio.NewReader(conn)
-	tp := textproto.NewReader(reader)
-	for {
-		line, err := tp.ReadLine()
-		if err != nil {
-			log.Printf("Error reading from group connection: %s", err)
-			bot.CreateGroupConnection()
-			break
-		}
-		if strings.Contains(line, "tmi.twitch.tv 001") {
-			bot.groupconnactive = true
-		}
-		if strings.Contains(line, "PING ") {
-			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
-		}
-		fmt.Fprintf(bot.inconn, line+"\r\n")
-	}
-}
-
 // CreateConnection Add a new connection
 func (bot *Bot) CreateConnection() {
 	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
@@ -145,26 +116,6 @@ func (bot *Bot) CreateConnection() {
 	}
 
 	go bot.ListenToConnection(conn)
-}
-
-// CreateGroupConnection creates connection to recevie and send whispers
-func (bot *Bot) CreateGroupConnection() {
-	conn, err := net.Dial("tcp", bot.groupserver+":"+bot.groupport)
-	if err != nil {
-		log.Println("unable to connect to group IRC server ", err)
-		bot.CreateGroupConnection()
-		return
-	}
-	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
-	fmt.Fprintf(conn, "USER %s\r\n", bot.nick)
-	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("new connection to group IRC server %s (%s)\n", bot.groupserver, conn.RemoteAddr())
-
-	bot.groupconn = conn
-
-	go bot.ListenToGroupConnection(conn)
 }
 
 // shuffle simple array shuffle functino
@@ -203,11 +154,6 @@ func (bot *Bot) Whisper(message string) {
 func (bot *Bot) Close() {
 	// Close the in connection
 	bot.inconn.Close()
-
-	// Close the group connection
-	if bot.groupconn != nil {
-		bot.groupconn.Close()
-	}
 
 	// Close the read connectin
 	if bot.mainconn != nil {
