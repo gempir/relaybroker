@@ -102,7 +102,7 @@ func handleMessage(message string, bot *Bot) {
 			go bot.CreateConnection()
 			go bot.CreateConnection()
 			go bot.CreateConnection()
-			go bot.CreateGroupConnection()
+			// go bot.CreateGroupConnection()
 		}
 	} else if strings.HasPrefix(message, "USER ") {
 		if bot.nick == "" {
@@ -115,7 +115,7 @@ func handleMessage(message string, bot *Bot) {
 				go bot.CreateConnection()
 				go bot.CreateConnection()
 				go bot.CreateConnection()
-				go bot.CreateGroupConnection()
+				// go bot.CreateGroupConnection()
 			}
 		}
 	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {

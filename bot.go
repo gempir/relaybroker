@@ -196,13 +196,7 @@ func (bot *Bot) Message(message string) {
 
 // Whisper to send whispers
 func (bot *Bot) Whisper(message string) {
-	for !bot.groupconnactive {
-		// wait for connection to become active
-		log.Printf("group connection not active yet [%s]\n", bot.nick)
-		time.Sleep(time.Second)
-	}
-	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :"+message+"\r\n")
-	log.Printf(message)
+	bot.Message("PRIVMSG #jtv :" + message)
 }
 
 // Clean up bot things
