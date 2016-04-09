@@ -11,111 +11,75 @@ import (
 	"time"
 )
 
-func (bot *Bot) reduceJoins() {
-	bot.joins--
-}
-
 // Bot struct for main config
 type Bot struct {
-	server          string
-	groupserver     string
-	port            string
-	groupport       string
-	oauth           string
-	nick            string
-	inconn          net.Conn
-	mainconn        net.Conn
-	connlist        []Connection
-	connactive      bool
-	groupconn       net.Conn
-	groupconnactive bool
-	joins           int
-	toJoin          []string
+	server   string
+	port     string
+	oauth    string
+	nick     string
+	inconn   net.Conn
+	connlist []Connection
+	channels []string
 }
 
 // NewBot main config
 func NewBot() *Bot {
 	return &Bot{
-		server:          "irc.chat.twitch.tv",
-		groupserver:     "group.tmi.twitch.tv",
-		port:            "80",
-		groupport:       "443",
-		oauth:           "",
-		nick:            "",
-		inconn:          nil,
-		mainconn:        nil,
-		connlist:        make([]Connection, 0),
-		connactive:      false,
-		groupconn:       nil,
-		groupconnactive: false,
-		joins:           0,
+		server:   "irc.chat.twitch.tv",
+		port:     "80",
+		oauth:    "",
+		nick:     "",
+		inconn:   nil,
+		connlist: make([]Connection, 0),
+		channels: make([]string, 0),
 	}
 }
 
-func (bot *Bot) join(channel string) {
-	for !bot.connactive {
-		log.Printf("chat connection not active yet [%s]\n", bot.nick)
-		time.Sleep(time.Second)
+// Join join a random channel
+func (bot *Bot) Join(channel string) {
+	for i := range bot.channels {
+		if channel == bot.channels[i] {
+			log.Println("already joined " + channel)
+			return
+		}
 	}
 
-	if bot.joins < 45 {
-		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
-		log.Printf("[chat] joined %s", channel)
-		bot.joins++
-		time.AfterFunc(10*time.Second, bot.reduceJoins)
-	} else {
-		log.Printf("[chat] in queue to join %s", channel)
-		time.Sleep(time.Second)
-		bot.join(channel)
+	shuffleConnections(bot.connlist)
+
+	for i := 0; i < len(bot.connlist); i++ {
+		log.Println(bot.connlist[i].joins, bot.connlist[i].connactive)
+		if bot.connlist[i].joins < 45 && bot.connlist[i].connactive {
+			bot.connlist[i].Join(channel)
+			bot.channels = append(bot.channels, channel)
+			log.Printf("[chat] joined %s", channel)
+			return
+		}
 	}
+	time.Sleep(time.Second)
+	bot.Join(channel)
 }
 
-func (bot *Bot) part(channel string) {
-	for !bot.connactive {
-		log.Printf("chat connection not active yet")
-		time.Sleep(time.Second)
-	}
-	fmt.Fprintf(bot.mainconn, "PART %s\r\n", channel)
-	log.Printf("[chat] parted %s", channel)
+// Part part channels
+func (bot *Bot) Part(channel string) {
+	// loop connections and find channel
 }
 
 // ListenToConnection listen
-func (bot *Bot) ListenToConnection(conn net.Conn) {
-	reader := bufio.NewReader(conn)
+func (bot *Bot) ListenToConnection(connection Connection) {
+	reader := bufio.NewReader(connection.conn)
 	tp := textproto.NewReader(reader)
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
 			log.Printf("Error reading from chat connection: %s", err)
-			bot.CreateConnection()
 			break // break loop on errors
 		}
 		if strings.Contains(line, "tmi.twitch.tv 001") {
-			bot.connactive = true
+			log.Println("conn active")
+			connection.connactive = true
 		}
 		if strings.Contains(line, "PING ") {
-			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
-		}
-		fmt.Fprintf(bot.inconn, line+"\r\n")
-	}
-}
-
-// ListenToGroupConnection validate connection is running and listen to it
-func (bot *Bot) ListenToGroupConnection(conn net.Conn) {
-	reader := bufio.NewReader(conn)
-	tp := textproto.NewReader(reader)
-	for {
-		line, err := tp.ReadLine()
-		if err != nil {
-			log.Printf("Error reading from group connection: %s", err)
-			bot.CreateGroupConnection()
-			break
-		}
-		if strings.Contains(line, "tmi.twitch.tv 001") {
-			bot.groupconnactive = true
-		}
-		if strings.Contains(line, "PING ") {
-			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
+			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
 		}
 		fmt.Fprintf(bot.inconn, line+"\r\n")
 	}
@@ -129,46 +93,19 @@ func (bot *Bot) CreateConnection() {
 		bot.CreateConnection()
 		return
 	}
-
 	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
 	fmt.Fprintf(conn, "USER %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
 	log.Printf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
-	connnection := NewConnection(conn)
-	bot.connlist = append(bot.connlist, connnection)
+	connection := NewConnection(conn)
+	bot.connlist = append(bot.connlist, connection)
 
-	if len(bot.connlist) == 1 {
-		bot.mainconn = conn
-	}
-
-	go bot.ListenToConnection(conn)
-}
-
-// CreateGroupConnection creates connection to recevie and send whispers
-func (bot *Bot) CreateGroupConnection() {
-	conn, err := net.Dial("tcp", bot.groupserver+":"+bot.groupport)
-	if err != nil {
-		log.Println("unable to connect to group IRC server ", err)
-		bot.CreateGroupConnection()
-		return
-	}
-	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
-	fmt.Fprintf(conn, "USER %s\r\n", bot.nick)
-	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("new connection to group IRC server %s (%s)\n", bot.groupserver, conn.RemoteAddr())
-
-	bot.groupconn = conn
-
-	go bot.ListenToGroupConnection(conn)
+	go bot.ListenToConnection(connection)
 }
 
 // shuffle simple array shuffle functino
-func shuffle(a []Connection) {
+func shuffleConnections(a []Connection) {
 	for i := range a {
 		j := rand.Intn(i + 1)
 		a[i], a[j] = a[j], a[i]
@@ -178,12 +115,9 @@ func shuffle(a []Connection) {
 // Message to send a message
 func (bot *Bot) Message(message string) {
 	message = strings.TrimSpace(message)
-	for !bot.connactive {
-		// wait for connection to become active
-	}
-	shuffle(bot.connlist)
+	shuffleConnections(bot.connlist)
 	for i := 0; i < len(bot.connlist); i++ {
-		if bot.connlist[i].messages < 90 {
+		if bot.connlist[i].messages < 90 && bot.connlist[i].connactive {
 			bot.connlist[i].Message(message)
 			return
 		}
@@ -194,31 +128,10 @@ func (bot *Bot) Message(message string) {
 	bot.Message(message)
 }
 
-// Whisper to send whispers
-func (bot *Bot) Whisper(message string) {
-	for !bot.groupconnactive {
-		// wait for connection to become active
-		log.Printf("group connection not active yet [%s]\n", bot.nick)
-		time.Sleep(time.Second)
-	}
-	fmt.Fprintf(bot.groupconn, "PRIVMSG #jtv :"+message+"\r\n")
-	log.Printf(message)
-}
-
-// Clean up bot things
+// Close clean up bot things
 func (bot *Bot) Close() {
 	// Close the in connection
 	bot.inconn.Close()
-
-	// Close the group connection
-	if bot.groupconn != nil {
-		bot.groupconn.Close()
-	}
-
-	// Close the read connectin
-	if bot.mainconn != nil {
-		bot.mainconn.Close()
-	}
 
 	// Close all listens connections
 	for i := 0; i < len(bot.connlist); i++ {

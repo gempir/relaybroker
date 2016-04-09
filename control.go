@@ -34,6 +34,7 @@ func TCPServer() (ret int) {
 	}
 }
 
+// CloseBot close all connectons for a specific bot
 func CloseBot(bot *Bot) {
 	// Iterate over the list of bots
 	for i := range botlist {
@@ -77,10 +78,10 @@ func handleMessage(message string, bot *Bot) {
 
 	if strings.HasPrefix(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
-		go bot.join(joinComm[1])
+		go bot.Join(joinComm[1])
 	} else if strings.HasPrefix(message, "PART ") {
 		partComm := strings.Split(message, "PART ")
-		go bot.part(partComm[1])
+		go bot.Part(partComm[1])
 	} else if strings.HasPrefix(message, "PASS ") {
 		passComm := strings.Split(message, "PASS ")
 		passwordParts := strings.Split(passComm[1], ";")
@@ -92,35 +93,25 @@ func handleMessage(message string, bot *Bot) {
 			bot.inconn.Close()
 			return
 		}
-	} else if strings.HasPrefix(message, "NICK ") {
-		nickComm := strings.Split(message, "NICK ")
-		bot.nick = nickComm[1]
+	} else if strings.HasPrefix(message, "NICK ") || strings.HasPrefix(message, "USER ") {
+
+		if strings.HasPrefix(message, "NICK ") {
+			nickComm := strings.Split(message, "NICK ")
+			bot.nick = nickComm[1]
+		} else if strings.HasPrefix(message, "USER ") {
+			nickComm := strings.Split(message, "USER ")
+			bot.nick = nickComm[1]
+		} else {
+			bot.nick = "justinfan123321"
+		}
 
 		if bot.oauth != "" {
 			bot.CreateConnection()
-			go bot.CreateConnection()
-			go bot.CreateConnection()
-			go bot.CreateConnection()
-			go bot.CreateConnection()
-			go bot.CreateGroupConnection()
+			bot.CreateConnection()
+			bot.CreateConnection()
+			bot.CreateConnection()
+			bot.CreateConnection()
 		}
-	} else if strings.HasPrefix(message, "USER ") {
-		if bot.nick == "" {
-			nickComm := strings.Split(message, "USER ")
-			bot.nick = nickComm[1]
-
-			if bot.oauth != "" {
-				bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateGroupConnection()
-			}
-		}
-	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {
-		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
-		go bot.Whisper(privmsgComm[1])
 	} else {
 		bot.Message(message)
 	}
