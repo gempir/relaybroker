@@ -44,7 +44,8 @@ func NewBot() *Bot {
 	}
 }
 
-func (bot *Bot) join(channel string) {
+// Join joins a channel
+func (bot *Bot) Join(channel string) {
 	for !bot.connactive {
 		log.Printf("chat connection not active yet [%s]\n", bot.nick)
 		time.Sleep(time.Second)
@@ -58,11 +59,12 @@ func (bot *Bot) join(channel string) {
 	} else {
 		log.Printf("[chat] in queue to join %s", channel)
 		time.Sleep(time.Second)
-		bot.join(channel)
+		bot.Join(channel)
 	}
 }
 
-func (bot *Bot) part(channel string) {
+// Part to leave channels
+func (bot *Bot) Part(channel string) {
 	for !bot.connactive {
 		log.Printf("chat connection not active yet")
 		time.Sleep(time.Second)
@@ -150,7 +152,7 @@ func (bot *Bot) Whisper(message string) {
 	bot.Message("PRIVMSG #jtv :" + message)
 }
 
-// Clean up bot things
+// Close clean up bot things
 func (bot *Bot) Close() {
 	// Close the in connection
 	bot.inconn.Close()
