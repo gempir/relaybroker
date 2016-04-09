@@ -100,9 +100,8 @@ func handleMessage(message string, bot *Bot) {
 		} else if strings.HasPrefix(message, "USER ") {
 			nickComm := strings.Split(message, "USER ")
 			bot.nick = nickComm[1]
-		} else {
-			bot.nick = "justinfan123321"
 		}
+
 		if bot.oauth != "" {
 			bot.CreateConnection()
 			go bot.CreateConnection()
