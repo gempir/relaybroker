@@ -94,6 +94,23 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 	}
 }
 
+// KeepConnectionAlive listen
+func (bot *Bot) KeepConnectionAlive(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+	tp := textproto.NewReader(reader)
+	for {
+		line, err := tp.ReadLine()
+		if err != nil {
+			log.Printf("Error reading from chat connection: %s", err)
+			bot.CreateConnection()
+			break // break loop on errors
+		}
+		if strings.Contains(line, "PING ") {
+			fmt.Fprintf(conn, "PONG tmi.twitch.tv\r\n")
+		}
+	}
+}
+
 // CreateConnection Add a new connection
 func (bot *Bot) CreateConnection() {
 	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
@@ -115,9 +132,10 @@ func (bot *Bot) CreateConnection() {
 
 	if len(bot.connlist) == 1 {
 		bot.mainconn = conn
+		go bot.ListenToConnection(conn)
 	}
 
-	go bot.ListenToConnection(conn)
+	go bot.KeepConnectionAlive(conn)
 }
 
 // shuffle simple array shuffle functino
