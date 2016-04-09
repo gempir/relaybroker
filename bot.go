@@ -133,9 +133,10 @@ func (bot *Bot) CreateConnection() {
 	if len(bot.connlist) == 1 {
 		bot.mainconn = conn
 		go bot.ListenToConnection(conn)
+	} else {
+		go bot.KeepConnectionAlive(conn)
 	}
 
-	go bot.KeepConnectionAlive(conn)
 }
 
 // shuffle simple array shuffle functino
