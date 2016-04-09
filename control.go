@@ -94,7 +94,6 @@ func handleMessage(message string, bot *Bot) {
 			return
 		}
 	} else if strings.HasPrefix(message, "NICK ") || strings.HasPrefix(message, "USER ") {
-
 		if strings.HasPrefix(message, "NICK ") {
 			nickComm := strings.Split(message, "NICK ")
 			bot.nick = nickComm[1]
@@ -104,15 +103,14 @@ func handleMessage(message string, bot *Bot) {
 		} else {
 			bot.nick = "justinfan123321"
 		}
-
 		if bot.oauth != "" {
 			bot.CreateConnection()
 			bot.CreateConnection()
 			bot.CreateConnection()
 			bot.CreateConnection()
 			bot.CreateConnection()
+		} else {
+			bot.Message(message)
 		}
-	} else {
-		bot.Message(message)
 	}
 }
