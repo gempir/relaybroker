@@ -109,8 +109,8 @@ func handleMessage(message string, bot *Bot) {
 			bot.CreateConnection()
 			bot.CreateConnection()
 			bot.CreateConnection()
-		} else {
-			bot.Message(message)
 		}
+	} else {
+		bot.Message(message)
 	}
 }

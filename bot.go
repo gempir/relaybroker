@@ -47,7 +47,6 @@ func (bot *Bot) Join(channel string) {
 	shuffleConnections(bot.connlist)
 
 	for i := 0; i < len(bot.connlist); i++ {
-		log.Println(bot.connlist[i].joins, bot.connlist[i].connactive)
 		if bot.connlist[i].joins < 45 && bot.connlist[i].connactive {
 			bot.connlist[i].Join(channel)
 			bot.channels = append(bot.channels, channel)
@@ -65,7 +64,7 @@ func (bot *Bot) Part(channel string) {
 }
 
 // ListenToConnection listen
-func (bot *Bot) ListenToConnection(connection Connection) {
+func (bot *Bot) ListenToConnection(connection *Connection) {
 	reader := bufio.NewReader(connection.conn)
 	tp := textproto.NewReader(reader)
 	for {
@@ -75,8 +74,7 @@ func (bot *Bot) ListenToConnection(connection Connection) {
 			break // break loop on errors
 		}
 		if strings.Contains(line, "tmi.twitch.tv 001") {
-			log.Println("conn active")
-			connection.connactive = true
+			connection.activateConn()
 		}
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
@@ -98,10 +96,9 @@ func (bot *Bot) CreateConnection() {
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
 	log.Printf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
-	connection := NewConnection(conn)
-	bot.connlist = append(bot.connlist, connection)
+	bot.connlist = append(bot.connlist, NewConnection(conn))
 
-	go bot.ListenToConnection(connection)
+	go bot.ListenToConnection(&bot.connlist[len(bot.connlist)-1])
 }
 
 // shuffle simple array shuffle functino

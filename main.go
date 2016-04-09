@@ -42,6 +42,10 @@ func (connection *Connection) reduceConnectionJoins() {
 	atomic.AddInt32(&connection.joins, -1)
 }
 
+func (connection *Connection) activateConn() {
+	connection.connactive = true
+}
+
 // Message called everytime you send a message
 func (connection *Connection) Message(message string) {
 	log.Println(connection.conn, message)
@@ -52,7 +56,7 @@ func (connection *Connection) Message(message string) {
 
 // Join controls joins
 func (connection *Connection) Join(channel string) {
-	log.Println(connection.conn, channel)
+	log.Println(connection.conn, "JOIN "+channel)
 	fmt.Fprintf(connection.conn, "JOIN %s\r\n", channel)
 	atomic.AddInt32(&connection.joins, 1)
 	time.AfterFunc(10*time.Second, connection.reduceConnectionJoins)
