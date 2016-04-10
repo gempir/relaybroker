@@ -2,15 +2,29 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
-	"time"
 	"sync/atomic"
+	"time"
+
+	"github.com/op/go-logging"
+)
+
+var (
+	log    = logging.MustGetLogger("example")
+	format = logging.MustStringFormatter(
+		`%{color}[%{time:2006-01-02 15:04:05}] [%{level:.4s}] %{color:reset}%{message}`,
+	)
 )
 
 func main() {
-	log.SetOutput(os.Stdout)
+	backend1 := logging.NewLogBackend(os.Stdout, "", 0)
+	backend2 := logging.NewLogBackend(os.Stdout, "", 0)
+	backend2Formatter := logging.NewBackendFormatter(backend2, format)
+	backend1Leveled := logging.AddModuleLevel(backend1)
+	backend1Leveled.SetLevel(logging.ERROR, "")
+	logging.SetBackend(backend1Leveled, backend2Formatter)
+
 	TCPServer()
 }
 
@@ -35,7 +49,7 @@ func (connection *Connection) reduceConnectionMessages() {
 
 // Message called everytime you send a message
 func (connection *Connection) Message(message string) {
-	log.Println(connection.conn, message)
+	log.Debug(connection.conn, message)
 	fmt.Fprintf(connection.conn, "%s\r\n", message)
 	atomic.AddInt32(&connection.messages, 1)
 	time.AfterFunc(30*time.Second, connection.reduceConnectionMessages)

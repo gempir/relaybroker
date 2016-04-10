@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"net/textproto"
@@ -47,17 +46,17 @@ func NewBot() *Bot {
 // Join joins a channel
 func (bot *Bot) Join(channel string) {
 	for !bot.connactive {
-		log.Printf("chat connection not active yet [%s]\n", bot.nick)
+		log.Debugf("chat connection not active yet [%s]\n", bot.nick)
 		time.Sleep(time.Second)
 	}
 
 	if bot.joins < 45 {
 		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
-		log.Printf("[chat] joined %s", channel)
+		log.Debugf("[chat] joined %s", channel)
 		bot.joins++
 		time.AfterFunc(10*time.Second, bot.reduceJoins)
 	} else {
-		log.Printf("[chat] in queue to join %s", channel)
+		log.Debugf("[chat] in queue to join %s", channel)
 		time.Sleep(time.Second)
 		bot.Join(channel)
 	}
@@ -66,11 +65,11 @@ func (bot *Bot) Join(channel string) {
 // Part to leave channels
 func (bot *Bot) Part(channel string) {
 	for !bot.connactive {
-		log.Printf("chat connection not active yet")
+		log.Debugf("chat connection not active yet")
 		time.Sleep(time.Second)
 	}
 	fmt.Fprintf(bot.mainconn, "PART %s\r\n", channel)
-	log.Printf("[chat] parted %s", channel)
+	log.Debugf("[chat] parted %s", channel)
 }
 
 // ListenToConnection listen
@@ -80,7 +79,7 @@ func (bot *Bot) ListenToConnection(conn net.Conn) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Printf("Error reading from chat connection: %s", err)
+			log.Errorf("Error reading from chat connection: %v", err)
 			bot.CreateConnection()
 			break // break loop on errors
 		}
@@ -101,7 +100,7 @@ func (bot *Bot) KeepConnectionAlive(conn net.Conn) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Printf("Error reading from chat connection: %s", err)
+			log.Errorf("Error reading from chat connection: %v", err)
 			bot.CreateConnection()
 			break // break loop on errors
 		}
@@ -115,7 +114,7 @@ func (bot *Bot) KeepConnectionAlive(conn net.Conn) {
 func (bot *Bot) CreateConnection() {
 	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
-		log.Println("unable to connect to chat IRC server ", err)
+		log.Noticef("unable to connect to chat IRC server ", err)
 		bot.CreateConnection()
 		return
 	}
@@ -125,7 +124,7 @@ func (bot *Bot) CreateConnection() {
 	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+	log.Debugf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
 	connnection := NewConnection(conn)
 	bot.connlist = append(bot.connlist, connnection)
@@ -161,7 +160,7 @@ func (bot *Bot) Message(message string) {
 		}
 	}
 	// open new connection when others too full
-	log.Printf("opened new connection, total: %d", len(bot.connlist))
+	log.Debugf("opened new connection, total: %d", len(bot.connlist))
 	bot.CreateConnection()
 	bot.Message(message)
 }

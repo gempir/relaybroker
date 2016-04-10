@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"net/textproto"
 	"strings"
@@ -15,10 +14,10 @@ var botlist []*Bot
 func TCPServer() (ret int) {
 	ln, err := net.Listen("tcp", ":"+TCPPort)
 	if err != nil {
-		log.Println("[control] error listening:", err.Error())
+		log.Errorf("[control] error listening: %v", err)
 		return 1
 	}
-	log.Printf("[control] listening to port %s for connections...", TCPPort)
+	log.Infof("[control] listening to port %s for connections...", TCPPort)
 	defer ln.Close()
 
 	for {
@@ -27,7 +26,7 @@ func TCPServer() (ret int) {
 		bot.inconn = conn
 		botlist = append(botlist, bot)
 		if err != nil {
-			fmt.Println("[control] error accepting: ", err.Error())
+			log.Errorf("[control] error accepting: %v", err)
 			return 1
 		}
 		go handleRequest(conn, bot)
@@ -65,7 +64,7 @@ func handleRequest(conn net.Conn, bot *Bot) {
 			return
 		}
 		if !strings.HasPrefix(line, "PASS ") {
-			log.Println("[control] " + line)
+			log.Debug("[control] " + line)
 		}
 		handleMessage(line, bot)
 	}
@@ -87,9 +86,9 @@ func handleMessage(message string, bot *Bot) {
 		passwordParts := strings.Split(passComm[1], ";")
 		if passwordParts[0] == TCPPass {
 			bot.oauth = passwordParts[1]
-			log.Printf("[control] authenticated! %s\n", remoteAddrIP)
+			log.Infof("[control] authenticated! %s\n", remoteAddrIP)
 		} else {
-			log.Printf("[control] invalid broker pass! %s\n", remoteAddrIP)
+			log.Infof("[control] invalid broker pass! %s\n", remoteAddrIP)
 			bot.inconn.Close()
 			return
 		}
