@@ -93,21 +93,23 @@ func handleMessage(message string, bot *Bot) {
 			return
 		}
 	} else if strings.HasPrefix(message, "NICK ") || strings.HasPrefix(message, "USER ") {
-		if strings.HasPrefix(message, "NICK ") {
-			nickComm := strings.Split(message, "NICK ")
-			bot.nick = nickComm[1]
-		} else if strings.HasPrefix(message, "USER ") {
-			nickComm := strings.Split(message, "USER ")
-			bot.nick = nickComm[1]
-		}
+        if bot.nick == "" {
+            if strings.HasPrefix(message, "NICK ") {
+                nickComm := strings.Split(message, "NICK ")
+                bot.nick = nickComm[1]
+            } else if strings.HasPrefix(message, "USER ") {
+                nickComm := strings.Split(message, "USER ")
+                bot.nick = nickComm[1]
+            }
 
-		if bot.oauth != "" {
-			bot.CreateConnection()
-			go bot.CreateConnection()
-			go bot.CreateConnection()
-			go bot.CreateConnection()
-			go bot.CreateConnection()
-		}
+            if bot.oauth != "" {
+                bot.CreateConnection()
+                go bot.CreateConnection()
+                go bot.CreateConnection()
+                go bot.CreateConnection()
+                go bot.CreateConnection()
+            }
+        }
 	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {
 		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
 		go bot.Whisper(privmsgComm[1])
