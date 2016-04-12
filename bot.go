@@ -84,6 +84,7 @@ func (bot *Bot) ListenToConnection(connection *Connection) {
 		}
 		if strings.Contains(line, "tmi.twitch.tv 001") {
 			connection.active = true
+			bot.connactive = true
 		}
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
