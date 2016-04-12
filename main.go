@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"github.com/op/go-logging"
 )
 
@@ -12,5 +13,12 @@ var (
 )
 
 func main() {
+	backend1 := logging.NewLogBackend(os.Stdout, "", 0)
+	backend2 := logging.NewLogBackend(os.Stdout, "", 0)
+	backend2Formatter := logging.NewBackendFormatter(backend2, format)
+	backend1Leveled := logging.AddModuleLevel(backend1)
+	backend1Leveled.SetLevel(logging.ERROR, "")
+	logging.SetBackend(backend1Leveled, backend2Formatter)
+
 	TCPServer()
 }
