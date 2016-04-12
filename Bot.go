@@ -22,6 +22,7 @@ type Bot struct {
 	connactive bool
 	login      bool
 	joins      int
+	anon       bool
 }
 
 // NewBot main config
@@ -37,6 +38,7 @@ func NewBot() *Bot {
 		connactive: false,
 		login:      false,
 		joins:      0,
+		anon:       true,
 	}
 }
 func (bot *Bot) reduceJoins() {
@@ -88,6 +90,8 @@ func (bot *Bot) CreateConnection() {
 	}
 	fmt.Fprintf(connnection.conn , "USER %s\r\n", bot.nick)
 	fmt.Fprintf(connnection.conn, "NICK %s\r\n", bot.nick)
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n")
 	log.Debugf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
 	if len(bot.connlist) == 0 {
@@ -158,6 +162,9 @@ func (bot *Bot) Message(message string) {
 			err := bot.connlist[i].Message(message)
 			if err != nil {
 				log.Error(err)
+				if err.Error() == "connection is anonymous" {
+					return
+				}
 				time.Sleep(time.Second)
 				bot.Message(message)
 			}

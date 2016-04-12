@@ -76,7 +76,7 @@ func handleRequest(conn net.Conn, bot *Bot) {
 
 // Handle an IRC received from a bot
 func handleMessage(message string, bot *Bot) error {
-	if !strings.HasPrefix(message, "PASS ") && !bot.login {
+	if !strings.HasPrefix(message, "PASS ") && !bot.login && !bot.anon {
 		return errors.New("not authenticated");
 	}
 
@@ -92,6 +92,7 @@ func handleMessage(message string, bot *Bot) error {
 		if passwordParts[0] == TCPPass {
 			bot.oauth = passwordParts[1]
 			bot.login = true
+			bot.anon  = false
 			log.Info("[control] authenticated!")
 		} else {
 			bot.inconn.Close()
