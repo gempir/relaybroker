@@ -27,12 +27,13 @@ func TCPServer() (ret int) {
 		bot.inconn = conn
 		botlist = append(botlist, bot)
 		if err != nil {
-			fmt.Println("[control] error accepting: ", err.Error())
+			log.Errorf("[control] error accepting: %v", err)
 			return 1
 		}
 		go handleRequest(conn, bot)
 	}
 }
+
 
 // CloseBot close all connectons for a specific bot
 func CloseBot(bot *Bot) {
