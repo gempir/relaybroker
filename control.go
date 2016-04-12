@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"errors"
 )
 
 var botlist []*Bot
@@ -14,10 +15,10 @@ var botlist []*Bot
 func TCPServer() (ret int) {
 	ln, err := net.Listen("tcp", ":"+TCPPort)
 	if err != nil {
-		log.Errorf("[control] error listening: %v", err)
+		log.Errorf("[control] error listening %v", err)
 		return 1
 	}
-	log.Infof("[control] listening to port %s for connections...", TCPPort)
+	log.Debugf("[control] listening to port %s for connections...", TCPPort)
 	defer ln.Close()
 
 	for {
@@ -33,7 +34,8 @@ func TCPServer() (ret int) {
 	}
 }
 
-// CloseBot closes all bots
+
+// CloseBot close all connectons for a specific bot
 func CloseBot(bot *Bot) {
 	// Iterate over the list of bots
 	for i := range botlist {
@@ -66,14 +68,18 @@ func handleRequest(conn net.Conn, bot *Bot) {
 		if !strings.HasPrefix(line, "PASS ") {
 			log.Debug("[control] " + line)
 		}
-		handleMessage(line, bot)
+		err = handleMessage(line, bot)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 }
 
 // Handle an IRC received from a bot
-func handleMessage(message string, bot *Bot) {
-	remoteAddr := bot.inconn.RemoteAddr().String()
-	remoteAddrIP := strings.Split(remoteAddr, ":")
+func handleMessage(message string, bot *Bot) error {
+	if !strings.HasPrefix(message, "PASS ") && !bot.login && !bot.anon {
+		return errors.New("not authenticated");
+	}
 
 	if strings.HasPrefix(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
@@ -86,11 +92,12 @@ func handleMessage(message string, bot *Bot) {
 		passwordParts := strings.Split(passComm[1], ";")
 		if passwordParts[0] == TCPPass {
 			bot.oauth = passwordParts[1]
-			log.Infof("[control] authenticated! %s\n", remoteAddrIP)
+			bot.login = true
+			bot.anon  = false
+			log.Info("[control] authenticated!")
 		} else {
-			log.Infof("[control] invalid broker pass! %s\n", remoteAddrIP)
 			bot.inconn.Close()
-			return
+			return errors.New("invalid broker pass");
 		}
 	} else if strings.HasPrefix(message, "NICK ") || strings.HasPrefix(message, "USER ") {
         if bot.nick == "" {
@@ -102,7 +109,7 @@ func handleMessage(message string, bot *Bot) {
                 bot.nick = nickComm[1]
             }
 
-            if bot.oauth != "" {
+            if bot.oauth != "" || strings.Contains(strings.ToLower(bot.nick), "justinfan"){
                 bot.CreateConnection()
                 go bot.CreateConnection()
                 go bot.CreateConnection()
@@ -116,4 +123,5 @@ func handleMessage(message string, bot *Bot) {
 	} else {
 		bot.Message(message)
 	}
+	return nil
 }
