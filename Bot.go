@@ -18,7 +18,7 @@ type Bot struct {
 	nick       string
 	inconn     net.Conn
 	mainconn   net.Conn
-	connlist   []Connection
+	connlist   []*Connection
 	connactive bool
 	login      bool
 	joins      int
@@ -33,7 +33,7 @@ func NewBot() *Bot {
 		nick:       "",
 		inconn:     nil,
 		mainconn:   nil,
-		connlist:   make([]Connection, 0),
+		connlist:   make([]*Connection, 0),
 		connactive: false,
 		login:      false,
 		joins:      0,
@@ -71,6 +71,34 @@ func (bot *Bot) Whisper(message string) {
 func (bot *Bot) Part(channel string) {
 	// loop connections and find channel
 }
+
+// CreateConnection Add a new connection
+func (bot *Bot) CreateConnection() {
+	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
+	if err != nil {
+		log.Errorf("unable to connect to chat IRC server %v", err)
+		bot.CreateConnection()
+		return
+	}
+	connnection := NewConnection(conn)
+
+	if bot.oauth != "" {
+		fmt.Fprintf(connnection.conn, "PASS %s\r\n", bot.oauth)
+		connnection.anon = false
+	}
+	fmt.Fprintf(connnection.conn , "USER %s\r\n", bot.nick)
+	fmt.Fprintf(connnection.conn, "NICK %s\r\n", bot.nick)
+	log.Debugf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+
+	if len(bot.connlist) == 0 {
+		bot.mainconn = connnection.conn
+		go bot.ListenToConnection(&connnection)
+	} else {
+		go bot.KeepConnectionAlive(&connnection)
+	}
+	bot.connlist = append(bot.connlist, &connnection)
+}
+
 
 // ListenToConnection listen
 func (bot *Bot) ListenToConnection(connection *Connection) {
@@ -113,35 +141,8 @@ func (bot *Bot) KeepConnectionAlive(connection *Connection) {
 	}
 }
 
-// CreateConnection Add a new connection
-func (bot *Bot) CreateConnection() {
-	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
-	if err != nil {
-		log.Errorf("unable to connect to chat IRC server %v", err)
-		bot.CreateConnection()
-		return
-	}
-	connnection := NewConnection(conn)
-
-	if bot.oauth != "" {
-		fmt.Fprintf(connnection.conn, "PASS %s\r\n", bot.oauth)
-		connnection.anon = false
-	}
-	fmt.Fprintf(connnection.conn , "USER %s\r\n", bot.nick)
-	fmt.Fprintf(connnection.conn, "NICK %s\r\n", bot.nick)
-	log.Debugf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
-
-	if len(bot.connlist) == 0 {
-		bot.mainconn = connnection.conn
-		go bot.ListenToConnection(&connnection)
-	} else {
-		go bot.KeepConnectionAlive(&connnection)
-	}
-	bot.connlist = append(bot.connlist, connnection)
-}
-
 // shuffle simple array shuffle functino
-func shuffleConnections(a []Connection) {
+func shuffleConnections(a []*Connection) {
 	for i := range a {
 		j := rand.Intn(i + 1)
 		a[i], a[j] = a[j], a[i]
