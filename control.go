@@ -3,10 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"net/textproto"
 	"strings"
+	"errors"
 )
 
 var botlist []*Bot
@@ -15,10 +15,10 @@ var botlist []*Bot
 func TCPServer() (ret int) {
 	ln, err := net.Listen("tcp", ":"+TCPPort)
 	if err != nil {
-		log.Println("[control] error listening:", err.Error())
+		log.Errorf("[control] error listening %v", err)
 		return 1
 	}
-	log.Printf("[control] listening to port %s for connections...", TCPPort)
+	log.Debugf("[control] listening to port %s for connections...", TCPPort)
 	defer ln.Close()
 
 	for {
@@ -65,16 +65,20 @@ func handleRequest(conn net.Conn, bot *Bot) {
 			return
 		}
 		if !strings.HasPrefix(line, "PASS ") {
-			log.Println("[control] " + line)
+			log.Debug("[control] " + line)
 		}
-		handleMessage(line, bot)
+		err = handleMessage(line, bot)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 }
 
 // Handle an IRC received from a bot
-func handleMessage(message string, bot *Bot) {
-	remoteAddr := bot.inconn.RemoteAddr().String()
-	remoteAddrIP := strings.Split(remoteAddr, ":")
+func handleMessage(message string, bot *Bot) error {
+	if !strings.HasPrefix(message, "PASS ") && !bot.login {
+		return errors.New("not authenticated");
+	}
 
 	if strings.HasPrefix(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
@@ -87,30 +91,35 @@ func handleMessage(message string, bot *Bot) {
 		passwordParts := strings.Split(passComm[1], ";")
 		if passwordParts[0] == TCPPass {
 			bot.oauth = passwordParts[1]
-			log.Printf("[control] authenticated! %s\n", remoteAddrIP)
+			bot.login = true
+			log.Info("[control] authenticated!")
 		} else {
-			log.Printf("[control] invalid broker pass! %s\n", remoteAddrIP)
 			bot.inconn.Close()
-			return
+			return errors.New("invalid broker pass");
 		}
 	} else if strings.HasPrefix(message, "NICK ") || strings.HasPrefix(message, "USER ") {
-		if strings.HasPrefix(message, "NICK ") {
-			nickComm := strings.Split(message, "NICK ")
-			bot.nick = nickComm[1]
-		} else if strings.HasPrefix(message, "USER ") {
-			nickComm := strings.Split(message, "USER ")
-			bot.nick = nickComm[1]
-		} else {
-			bot.nick = "justinfan123321"
-		}
-		if bot.oauth != "" {
-			bot.CreateConnection()
-			bot.CreateConnection()
-			bot.CreateConnection()
-			bot.CreateConnection()
-			bot.CreateConnection()
-		}
+        if bot.nick == "" {
+            if strings.HasPrefix(message, "NICK ") {
+                nickComm := strings.Split(message, "NICK ")
+                bot.nick = nickComm[1]
+            } else if strings.HasPrefix(message, "USER ") {
+                nickComm := strings.Split(message, "USER ")
+                bot.nick = nickComm[1]
+            }
+
+            if bot.oauth != "" || strings.Contains(strings.ToLower(bot.nick), "justinfan"){
+                bot.CreateConnection()
+                go bot.CreateConnection()
+                go bot.CreateConnection()
+                go bot.CreateConnection()
+                go bot.CreateConnection()
+            }
+        }
+	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {
+		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
+		go bot.Whisper(privmsgComm[1])
 	} else {
 		bot.Message(message)
 	}
+	return nil
 }

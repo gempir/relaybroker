@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"net/textproto"
@@ -13,49 +12,59 @@ import (
 
 // Bot struct for main config
 type Bot struct {
-	server   string
-	port     string
-	oauth    string
-	nick     string
-	inconn   net.Conn
-	connlist []Connection
-	channels []string
+	server     string
+	port       string
+	oauth      string
+	nick       string
+	inconn     net.Conn
+	mainconn   net.Conn
+	connlist   []Connection
+	connactive bool
+	login      bool
+	joins      int
 }
 
 // NewBot main config
 func NewBot() *Bot {
 	return &Bot{
-		server:   "irc.chat.twitch.tv",
-		port:     "80",
-		oauth:    "",
-		nick:     "",
-		inconn:   nil,
-		connlist: make([]Connection, 0),
-		channels: make([]string, 0),
+		server:     "irc.chat.twitch.tv",
+		port:       "80",
+		oauth:      "",
+		nick:       "",
+		inconn:     nil,
+		mainconn:   nil,
+		connlist:   make([]Connection, 0),
+		connactive: false,
+		login:      false,
+		joins:      0,
+	}
+}
+func (bot *Bot) reduceJoins() {
+	bot.joins--
+}
+
+// Join joins a channel
+func (bot *Bot) Join(channel string) {
+	for !bot.connactive {
+		log.Debugf("chat connection not active yet [%s]\n", bot.nick)
+		time.Sleep(time.Second)
+	}
+
+	if bot.joins < 45 {
+		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
+		log.Debugf("[chat] joined %s", channel)
+		bot.joins++
+		time.AfterFunc(10*time.Second, bot.reduceJoins)
+	} else {
+		log.Debugf("[chat] in queue to join %s", channel)
+		time.Sleep(time.Second)
+		bot.Join(channel)
 	}
 }
 
-// Join join a random channel
-func (bot *Bot) Join(channel string) {
-	for i := range bot.channels {
-		if channel == bot.channels[i] {
-			log.Println("already joined " + channel)
-			return
-		}
-	}
-
-	shuffleConnections(bot.connlist)
-
-	for i := 0; i < len(bot.connlist); i++ {
-		if bot.connlist[i].joins < 45 && bot.connlist[i].connactive {
-			bot.connlist[i].Join(channel)
-			bot.channels = append(bot.channels, channel)
-			log.Printf("[chat] joined %s", channel)
-			return
-		}
-	}
-	time.Sleep(time.Second)
-	bot.Join(channel)
+// Whisper to send whispers
+func (bot *Bot) Whisper(message string) {
+	bot.Message("PRIVMSG #jtv :" + message)
 }
 
 // Part part channels
@@ -70,11 +79,11 @@ func (bot *Bot) ListenToConnection(connection *Connection) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			log.Printf("Error reading from chat connection: %s", err)
+			log.Errorf("Error reading from chat connection: %s", err)
 			break // break loop on errors
 		}
 		if strings.Contains(line, "tmi.twitch.tv 001") {
-			connection.activateConn()
+			connection.active = true
 		}
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
@@ -83,22 +92,51 @@ func (bot *Bot) ListenToConnection(connection *Connection) {
 	}
 }
 
+// KeepConnectionAlive listen
+func (bot *Bot) KeepConnectionAlive(connection *Connection) {
+	reader := bufio.NewReader(connection.conn)
+	tp := textproto.NewReader(reader)
+	for {
+		line, err := tp.ReadLine()
+		if err != nil {
+			log.Errorf("Error reading from chat connection: %v", err)
+			bot.CreateConnection()
+			break // break loop on errors
+		}
+		if strings.Contains(line, "tmi.twitch.tv 001") {
+			connection.active = true
+		}
+		if strings.Contains(line, "PING ") {
+			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
+		}
+	}
+}
+
 // CreateConnection Add a new connection
 func (bot *Bot) CreateConnection() {
 	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
-		log.Println("unable to connect to chat IRC server ", err)
+		log.Errorf("unable to connect to chat IRC server %v", err)
 		bot.CreateConnection()
 		return
 	}
-	fmt.Fprintf(conn, "PASS %s\r\n", bot.oauth)
-	fmt.Fprintf(conn, "USER %s\r\n", bot.nick)
-	fmt.Fprintf(conn, "NICK %s\r\n", bot.nick)
-	log.Printf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+	connnection := NewConnection(conn)
 
-	bot.connlist = append(bot.connlist, NewConnection(conn))
+	if bot.oauth != "" {
+		fmt.Fprintf(connnection.conn, "PASS %s\r\n", bot.oauth)
+		connnection.anon = false
+	}
+	fmt.Fprintf(connnection.conn , "USER %s\r\n", bot.nick)
+	fmt.Fprintf(connnection.conn, "NICK %s\r\n", bot.nick)
+	log.Debugf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
 
-	go bot.ListenToConnection(&bot.connlist[len(bot.connlist)-1])
+	if len(bot.connlist) == 0 {
+		bot.mainconn = connnection.conn
+		go bot.ListenToConnection(&connnection)
+	} else {
+		go bot.KeepConnectionAlive(&connnection)
+	}
+	bot.connlist = append(bot.connlist, connnection)
 }
 
 // shuffle simple array shuffle functino
@@ -114,13 +152,18 @@ func (bot *Bot) Message(message string) {
 	message = strings.TrimSpace(message)
 	shuffleConnections(bot.connlist)
 	for i := 0; i < len(bot.connlist); i++ {
-		if bot.connlist[i].messages < 90 && bot.connlist[i].connactive {
-			bot.connlist[i].Message(message)
+		if bot.connlist[i].messages < 90 {
+			err := bot.connlist[i].Message(message)
+			if err != nil {
+				log.Error(err)
+				time.Sleep(time.Second)
+				bot.Message(message)
+			}
 			return
 		}
 	}
 	// open new connection when others too full
-	log.Printf("opened new connection, total: %d", len(bot.connlist))
+	log.Debugf("opened new connection, total: %d", len(bot.connlist))
 	bot.CreateConnection()
 	bot.Message(message)
 }
