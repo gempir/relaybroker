@@ -121,7 +121,7 @@ func (bot *Bot) ListenToConnection(connection *Connection) {
 		if strings.Contains(line, "PING ") {
 			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
 		}
-		fmt.Fprintf(bot.inconn, line+"\r\n")
+		fmt.Fprint(bot.inconn, line+"\r\n")
 	}
 }
 

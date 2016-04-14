@@ -40,7 +40,7 @@ func (connection *Connection) Message(message string) error {
         return errors.New("connection is inactive") // wait for connection to become active
     }
 	log.Debug(connection.conn, message)
-	fmt.Fprintf(connection.conn, "%s\r\n", message)
+	fmt.Fprint(connection.conn, message + "\r\n")
 	atomic.AddInt32(&connection.messages, 1)
 	time.AfterFunc(30*time.Second, connection.reduceConnectionMessages)
     return nil
