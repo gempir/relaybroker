@@ -21,7 +21,6 @@ type Bot struct {
 	connlist   []*Connection
 	connactive bool
 	login      bool
-	joins      int
 	anon       bool
 }
 
@@ -37,12 +36,11 @@ func NewBot() *Bot {
 		connlist:   make([]*Connection, 0),
 		connactive: false,
 		login:      false,
-		joins:      0,
 		anon:       true,
 	}
 }
 func (bot *Bot) reduceJoins() {
-	bot.joins--
+	joins--
 }
 
 // Join joins a channel
@@ -52,10 +50,10 @@ func (bot *Bot) Join(channel string) {
 		time.Sleep(time.Second)
 	}
 
-	if bot.joins < 45 {
+	if joins < 45 {
 		fmt.Fprintf(bot.mainconn, "JOIN %s\r\n", channel)
 		log.Debugf("[chat] joined %s", channel)
-		bot.joins++
+		joins++
 		time.AfterFunc(10*time.Second, bot.reduceJoins)
 	} else {
 		log.Debugf("[chat] in queue to join %s", channel)
