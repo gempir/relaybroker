@@ -119,6 +119,8 @@ func handleMessage(message string, bot *Bot) error {
 	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {
 		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
 		go bot.Whisper(privmsgComm[1])
+	} else if strings.HasPrefix(message, "CAP ") {
+		// Throw this message away
 	} else {
 		bot.Message(message)
 	}
