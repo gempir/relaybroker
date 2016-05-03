@@ -2,11 +2,11 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"net/textproto"
 	"strings"
-	"errors"
 )
 
 var botlist []*Bot
@@ -33,7 +33,6 @@ func TCPServer() (ret int) {
 		go handleRequest(conn, bot)
 	}
 }
-
 
 // CloseBot close all connectons for a specific bot
 func CloseBot(bot *Bot) {
@@ -78,7 +77,7 @@ func handleRequest(conn net.Conn, bot *Bot) {
 // Handle an IRC received from a bot
 func handleMessage(message string, bot *Bot) error {
 	if !strings.HasPrefix(message, "PASS ") && !bot.login && !bot.anon {
-		return errors.New("not authenticated");
+		return errors.New("not authenticated")
 	}
 
 	if strings.HasPrefix(message, "JOIN ") {
@@ -93,30 +92,30 @@ func handleMessage(message string, bot *Bot) error {
 		if passwordParts[0] == TCPPass {
 			bot.oauth = passwordParts[1]
 			bot.login = true
-			bot.anon  = false
+			bot.anon = false
 			log.Info("[control] authenticated!")
 		} else {
 			bot.inconn.Close()
-			return errors.New("invalid broker pass");
+			return errors.New("invalid broker pass")
 		}
 	} else if strings.HasPrefix(message, "NICK ") || strings.HasPrefix(message, "USER ") {
-        if bot.nick == "" {
-            if strings.HasPrefix(message, "NICK ") {
-                nickComm := strings.Split(message, "NICK ")
-                bot.nick = nickComm[1]
-            } else if strings.HasPrefix(message, "USER ") {
-                nickComm := strings.Split(message, "USER ")
-                bot.nick = nickComm[1]
-            }
+		if bot.nick == "" {
+			if strings.HasPrefix(message, "NICK ") {
+				nickComm := strings.Split(message, "NICK ")
+				bot.nick = nickComm[1]
+			} else if strings.HasPrefix(message, "USER ") {
+				nickComm := strings.Split(message, "USER ")
+				bot.nick = nickComm[1]
+			}
 
-            if bot.oauth != "" || strings.Contains(strings.ToLower(bot.nick), "justinfan"){
-                bot.CreateConnection()
-                go bot.CreateConnection()
-                go bot.CreateConnection()
-                go bot.CreateConnection()
-                go bot.CreateConnection()
-            }
-        }
+			if bot.oauth != "" || strings.Contains(strings.ToLower(bot.nick), "justinfan") {
+				bot.CreateConnection()
+				go bot.CreateConnection()
+				go bot.CreateConnection()
+				go bot.CreateConnection()
+				go bot.CreateConnection()
+			}
+		}
 	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {
 		privmsgComm := strings.Split(message, "PRIVMSG #jtv :")
 		go bot.Whisper(privmsgComm[1])

@@ -86,7 +86,7 @@ func (bot *Bot) CreateConnection() {
 		fmt.Fprintf(connnection.conn, "PASS %s\r\n", bot.oauth)
 		connnection.anon = false
 	}
-	fmt.Fprintf(connnection.conn , "USER %s\r\n", bot.nick)
+	fmt.Fprintf(connnection.conn, "USER %s\r\n", bot.nick)
 	fmt.Fprintf(connnection.conn, "NICK %s\r\n", bot.nick)
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")
 	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n")
@@ -100,7 +100,6 @@ func (bot *Bot) CreateConnection() {
 	}
 	bot.connlist = append(bot.connlist, &connnection)
 }
-
 
 // ListenToConnection listen
 func (bot *Bot) ListenToConnection(connection *Connection) {
