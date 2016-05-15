@@ -13,12 +13,12 @@ var botlist []*Bot
 
 // TCPServer simple tcp server for commands
 func TCPServer() (ret int) {
-	ln, err := net.Listen("tcp", ":"+TCPPort)
+	ln, err := net.Listen("tcp", ":" + config.Broker_port)
 	if err != nil {
 		log.Errorf("[control] error listening %v", err)
 		return 1
 	}
-	log.Debugf("[control] listening to port %s for connections...", TCPPort)
+	log.Debugf("[control] listening to port %s for connections...", config.Broker_port)
 	defer ln.Close()
 
 	for {
@@ -89,7 +89,7 @@ func handleMessage(message string, bot *Bot) error {
 	} else if strings.HasPrefix(message, "PASS ") {
 		passComm := strings.Split(message, "PASS ")
 		passwordParts := strings.Split(passComm[1], ";")
-		if passwordParts[0] == TCPPass {
+		if passwordParts[0] == config.Broker_pass {
 			bot.oauth = passwordParts[1]
 			bot.login = true
 			bot.anon = false
