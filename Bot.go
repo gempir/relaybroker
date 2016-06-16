@@ -113,11 +113,9 @@ func (bot *Bot) Join() {
 		if alreadyJoined {
 			log.Debug("already joined channel ", channel)
 		} else {
-			retry := 0
-			for !bot.connactive && retry < 20 {
-				log.Debugf("chat connection not active yet (this is normal when bot has been replaced) [%s]\n", bot.nick)
+			for !bot.connactive {
+				log.Debugf("chat connection not active yet [%s]\n", bot.nick)
 				time.Sleep(time.Second)
-				retry++
 			}
 			conn := bot.getReadconn()
 			fmt.Fprintf(conn.conn, "JOIN %s\r\n", channel)

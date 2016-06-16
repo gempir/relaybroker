@@ -117,6 +117,7 @@ func handleMessage(message string, bot *Bot) error {
 					c := make(chan string)
 					bot.join = c
 					bot.inconn = conn
+					bot.connactive = true
 					close(c)
 					deletePendingBot(bot)
 					go handleRequest(oldBot.inconn, oldBot)
