@@ -45,6 +45,17 @@ func CloseBot(bot *Bot) {
 	bot.Close()
 }
 
+func deletePendingBot(bot *Bot) {
+	log.Debug("deleting bot")
+	for i := range pendingBots {
+		if bot == pendingBots[i] {
+			// Remove the closed bot from the list
+			pendingBots = append(pendingBots[:i], pendingBots[i+1:]...)
+			return
+		}
+	}
+}
+
 func handleRequest(conn net.Conn, bot *Bot) {
 
 	reader := bufio.NewReader(conn)
@@ -64,13 +75,13 @@ func handleRequest(conn net.Conn, bot *Bot) {
 		err = handleMessage(line, bot)
 		if err != nil {
 			log.Error(err)
+			return
 		}
 	}
 }
 
 // Handle an IRC received from a bot
 func handleMessage(message string, bot *Bot) error {
-	log.Debug(botlist)
 	if !strings.HasPrefix(message, "PASS ") && !bot.login && !bot.anon {
 		return errors.New("not authenticated")
 	}
@@ -99,8 +110,17 @@ func handleMessage(message string, bot *Bot) error {
 				nickComm := strings.Split(message, "NICK ")
 				bot.nick = nickComm[1]
 				if oldBot, ok := botlist[bot.nick]; ok {
+					// replace bots
+					conn := oldBot.inconn
 					oldBot.inconn = bot.inconn
+					oldBot.join = bot.join
+					c := make(chan string)
+					bot.join = c
+					bot.inconn = conn
+					close(c)
+					deletePendingBot(bot)
 					go handleRequest(oldBot.inconn, oldBot)
+
 					return fmt.Errorf("reconnected old bot %s", oldBot.nick)
 				} else {
 					botlist[bot.nick] = bot

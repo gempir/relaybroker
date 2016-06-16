@@ -91,8 +91,13 @@ func (bot *Bot) getReadconn() *Connection {
 
 // Join joins a channel
 func (bot *Bot) Join() {
-	for {
-		channel := <-bot.join
+	var isOpen = true
+	for isOpen {
+		channel, isOpen := <-bot.join
+		if !isOpen {
+			bot.Close()
+			return
+		}
 		alreadyJoined := false
 		func() {
 			for _, co := range bot.readconn {
@@ -109,12 +114,9 @@ func (bot *Bot) Join() {
 			log.Debug("already joined channel ", channel)
 		} else {
 			retry := 0
-			for !bot.connactive {
-				log.Debugf("chat connection not active yet [%s]\n", bot.nick)
+			for !bot.connactive && retry < 20 {
+				log.Debugf("chat connection not active yet (this is normal when bot has been replaced) [%s]\n", bot.nick)
 				time.Sleep(time.Second)
-				if retry > 20 {
-					bot.Close()
-				}
 				retry++
 			}
 			conn := bot.getReadconn()
