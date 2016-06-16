@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-var botlist []*Bot
+var botlist = make(map[string]*Bot)
+var pendingBots []*Bot
 
 // TCPServer simple tcp server for commands
 func TCPServer() (ret int) {
@@ -24,8 +25,9 @@ func TCPServer() (ret int) {
 	for {
 		conn, err := ln.Accept()
 		bot := NewBot()
+		go bot.Join()
 		bot.inconn = conn
-		botlist = append(botlist, bot)
+		pendingBots = append(pendingBots, bot)
 		if err != nil {
 			log.Errorf("[control] error accepting: %v", err)
 			return 1
@@ -36,22 +38,14 @@ func TCPServer() (ret int) {
 
 // CloseBot close all connectons for a specific bot
 func CloseBot(bot *Bot) {
-	// Iterate over the list of bots
-	for i := range botlist {
-		if bot == botlist[i] {
-			// Remove the closed bot from the list
-			botlist = append(botlist[:i], botlist[i+1:]...)
-			return
-		}
-	}
+	log.Debugf("closing bot %s", bot.nick)
 
+	delete(botlist, bot.nick)
 	// Let the bot clean itself up
 	bot.Close()
 }
 
 func handleRequest(conn net.Conn, bot *Bot) {
-	defer CloseBot(bot)
-	defer bot.Close()
 
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
@@ -76,13 +70,14 @@ func handleRequest(conn net.Conn, bot *Bot) {
 
 // Handle an IRC received from a bot
 func handleMessage(message string, bot *Bot) error {
+	log.Debug(botlist)
 	if !strings.HasPrefix(message, "PASS ") && !bot.login && !bot.anon {
 		return errors.New("not authenticated")
 	}
 
 	if strings.HasPrefix(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
-		go bot.Join(joinComm[1])
+		bot.join <- joinComm[1]
 	} else if strings.HasPrefix(message, "PART ") {
 		partComm := strings.Split(message, "PART ")
 		go bot.Part(partComm[1])
@@ -103,17 +98,25 @@ func handleMessage(message string, bot *Bot) error {
 			if strings.HasPrefix(message, "NICK ") {
 				nickComm := strings.Split(message, "NICK ")
 				bot.nick = nickComm[1]
+				if oldBot, ok := botlist[bot.nick]; ok {
+					oldBot.inconn = bot.inconn
+					go handleRequest(oldBot.inconn, oldBot)
+					return fmt.Errorf("reconnected old bot %s", oldBot.nick)
+				} else {
+					botlist[bot.nick] = bot
+				}
 			} else if strings.HasPrefix(message, "USER ") {
 				nickComm := strings.Split(message, "USER ")
 				bot.nick = nickComm[1]
 			}
 
 			if bot.oauth != "" || strings.Contains(strings.ToLower(bot.nick), "justinfan") {
-				bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
+				bot.CreateConnection(connReadconn)
+				bot.CreateConnection(connReadconn)
+				go bot.CreateConnection(connWhisperconn)
+				go bot.CreateConnection(connSendconn)
+				go bot.CreateConnection(connSendconn)
+				go bot.CreateConnection(connSendconn)
 			}
 		}
 	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {

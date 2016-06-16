@@ -14,6 +14,7 @@ type Connection struct {
 	messages int32
 	active   bool
 	anon     bool
+	joins    []string
 }
 
 // NewConnection initialize a Connection struct
@@ -23,6 +24,7 @@ func NewConnection(conn net.Conn) Connection {
 		messages: 0,
 		active:   false,
 		anon:     true,
+		joins:    make([]string, 0),
 	}
 
 }
