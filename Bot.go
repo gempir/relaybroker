@@ -108,9 +108,14 @@ func (bot *Bot) Join() {
 		if alreadyJoined {
 			log.Debug("already joined channel ", channel)
 		} else {
+			retry := 0
 			for !bot.connactive {
 				log.Debugf("chat connection not active yet [%s]\n", bot.nick)
 				time.Sleep(time.Second)
+				if retry > 20 {
+					bot.Close()
+				}
+				retry++
 			}
 			conn := bot.getReadconn()
 			fmt.Fprintf(conn.conn, "JOIN %s\r\n", channel)
@@ -245,7 +250,7 @@ func (bot *Bot) Message(message string) {
 	message = strings.TrimSpace(message)
 	shuffleConnections(bot.connlist)
 	for i := 0; i < len(bot.connlist); i++ {
-		if bot.connlist[i].messages < 90 {
+		if bot.connlist[i].messages < 15 {
 			err := bot.connlist[i].Message(message)
 			if err != nil {
 				log.Error(err)
