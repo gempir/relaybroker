@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -28,12 +29,13 @@ const (
 
 // Bot struct for main config
 type Bot struct {
+	sync.Mutex
 	server      string
 	port        string
 	oauth       string
 	nick        string
 	inconn      net.Conn
-	whisperconn net.Conn
+	whisperconn *Connection
 	readconn    []*Connection
 	connlist    []*Connection
 	connactive  bool
@@ -161,7 +163,7 @@ func (bot *Bot) CreateConnection(conntype connType) {
 		go bot.ListenToConnection(&connection)
 
 	} else if conntype == connWhisperconn {
-		bot.whisperconn = connection.conn
+		bot.whisperconn = &connection
 		go bot.ListenForWhispers(&connection)
 
 	} else {
@@ -185,10 +187,13 @@ func (bot *Bot) ListenToConnection(connection *Connection) {
 			connection.active = true
 			bot.connactive = true
 		}
-		if strings.Contains(line, "PING ") {
+		if strings.HasPrefix(line, "PING ") {
 			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
 		}
-		if getmsgType(line) != msgWhisper {
+		if strings.HasPrefix(line, "PONG ") {
+			connection.alive = true
+		}
+		if getmsgType(line) != msgWhisper && !strings.HasPrefix(line, "PONG ") {
 			fmt.Fprint(bot.inconn, line+"\r\n")
 		}
 	}
@@ -208,8 +213,11 @@ func (bot *Bot) ListenForWhispers(connection *Connection) {
 			connection.active = true
 			bot.connactive = true
 		}
-		if strings.Contains(line, "PING ") {
+		if strings.HasPrefix(line, "PING ") {
 			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
+		}
+		if strings.HasPrefix(line, "PONG ") {
+			connection.alive = true
 		}
 		if getmsgType(line) == msgWhisper {
 			fmt.Fprint(bot.inconn, line+"\r\n")
@@ -231,8 +239,58 @@ func (bot *Bot) KeepConnectionAlive(connection *Connection) {
 		if strings.Contains(line, "tmi.twitch.tv 001") {
 			connection.active = true
 		}
-		if strings.Contains(line, "PING ") {
+		if strings.HasPrefix(line, "PING ") {
 			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
+		}
+		if strings.HasPrefix(line, "PONG ") {
+			connection.alive = true
+		}
+	}
+}
+
+func (bot *Bot) rejoinChannels(channels []string) {
+	for _, channel := range channels {
+		bot.join <- channel
+	}
+}
+
+func getIndex(conn *Connection, s []*Connection) int {
+	for i, c := range s {
+		if c == conn {
+			return i
+		}
+	}
+	return 0
+}
+
+func (bot *Bot) checkConnections() {
+	ticker := time.NewTicker(60 * time.Second)
+	for {
+		<-ticker.C
+		for _, conn := range bot.readconn {
+			go bot.checkConnection(conn)
+		}
+		for _, conn := range bot.connlist {
+			go bot.checkConnection(conn)
+		}
+		go bot.checkConnection(bot.whisperconn)
+	}
+}
+
+func (bot *Bot) checkConnection(conn *Connection) {
+	died := conn.checkIfAlive()
+	if died {
+		bot.Lock()
+		defer bot.Unlock()
+		if len(conn.joins) != 0 {
+			i := getIndex(conn, bot.readconn)
+			bot.readconn = append(bot.readconn[:i], bot.readconn[i+1:]...)
+			bot.rejoinChannels(conn.joins)
+		} else if conn == bot.whisperconn {
+			bot.CreateConnection(connWhisperconn)
+		} else {
+			i := getIndex(conn, bot.readconn)
+			bot.connlist = append(bot.connlist[:i], bot.connlist[i+1:]...)
 		}
 	}
 }

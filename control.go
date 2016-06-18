@@ -57,7 +57,7 @@ func deletePendingBot(bot *Bot) {
 }
 
 func handleRequest(conn net.Conn, bot *Bot) {
-
+	go bot.checkConnections()
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 	for {
@@ -123,9 +123,10 @@ func handleMessage(message string, bot *Bot) error {
 					go handleRequest(oldBot.inconn, oldBot)
 
 					return fmt.Errorf("reconnected old bot %s", oldBot.nick)
-				} else {
-					botlist[bot.nick] = bot
 				}
+				botlist[bot.nick] = bot
+				deletePendingBot(bot)
+
 			} else if strings.HasPrefix(message, "USER ") {
 				nickComm := strings.Split(message, "USER ")
 				bot.nick = nickComm[1]
