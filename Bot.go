@@ -147,6 +147,7 @@ func (bot *Bot) CreateConnection(conntype connType) {
 		return
 	}
 	connection := NewConnection(conn)
+	connection.conntype = conntype
 
 	if bot.oauth != "" {
 		fmt.Fprintf(connection.conn, "PASS %s\r\n", bot.oauth)
@@ -170,7 +171,15 @@ func (bot *Bot) CreateConnection(conntype connType) {
 		go bot.KeepConnectionAlive(&connection)
 		bot.connlist = append(bot.connlist, &connection)
 	}
+}
 
+func (bot *Bot) reopen(conn *Connection) {
+	time.Sleep(time.Second)
+	bot.Lock()
+	defer bot.Unlock()
+	deleteConn(conn, bot.readconn)
+	bot.CreateConnection(conn.conntype)
+	bot.rejoinChannels(conn.joins)
 }
 
 // ListenToConnection listen
@@ -197,6 +206,7 @@ func (bot *Bot) ListenToConnection(connection *Connection) {
 			fmt.Fprint(bot.inconn, line+"\r\n")
 		}
 	}
+	bot.reopen(connection)
 }
 
 //ListenForWhispers only reads whispers
@@ -223,6 +233,7 @@ func (bot *Bot) ListenForWhispers(connection *Connection) {
 			fmt.Fprint(bot.inconn, line+"\r\n")
 		}
 	}
+	bot.reopen(connection)
 }
 
 // KeepConnectionAlive listen
@@ -246,6 +257,7 @@ func (bot *Bot) KeepConnectionAlive(connection *Connection) {
 			connection.alive = true
 		}
 	}
+	bot.reopen(connection)
 }
 
 func (bot *Bot) rejoinChannels(channels []string) {
@@ -261,6 +273,11 @@ func getIndex(conn *Connection, s []*Connection) int {
 		}
 	}
 	return 0
+}
+
+func deleteConn(conn *Connection, s []*Connection) {
+	i := getIndex(conn, s)
+	s = append(s[:i], s[i+1:]...)
 }
 
 func (bot *Bot) checkConnections() {
@@ -283,14 +300,12 @@ func (bot *Bot) checkConnection(conn *Connection) {
 		bot.Lock()
 		defer bot.Unlock()
 		if len(conn.joins) != 0 {
-			i := getIndex(conn, bot.readconn)
-			bot.readconn = append(bot.readconn[:i], bot.readconn[i+1:]...)
+			deleteConn(conn, bot.readconn)
 			bot.rejoinChannels(conn.joins)
 		} else if conn == bot.whisperconn {
 			bot.CreateConnection(connWhisperconn)
 		} else {
-			i := getIndex(conn, bot.readconn)
-			bot.connlist = append(bot.connlist[:i], bot.connlist[i+1:]...)
+			deleteConn(conn, bot.connlist)
 		}
 	}
 }

@@ -16,6 +16,7 @@ type Connection struct {
 	anon     bool
 	joins    []string
 	alive    bool
+	conntype connType
 }
 
 // NewConnection initialize a Connection struct
