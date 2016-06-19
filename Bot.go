@@ -42,6 +42,8 @@ type Bot struct {
 	login       bool
 	anon        bool
 	join        chan string
+	open        bool
+	handler     map[int]bool
 }
 
 // NewBot main config
@@ -58,6 +60,8 @@ func NewBot() *Bot {
 		login:      false,
 		anon:       true,
 		join:       make(chan string, 100000),
+		open:       true,
+		handler:    make(map[int]bool),
 	}
 }
 
@@ -114,9 +118,10 @@ func (bot *Bot) Join() {
 
 		if alreadyJoined {
 			log.Debug("already joined channel ", channel)
+			log.Debugf("%p\n", bot)
 		} else {
-			for !bot.connactive {
-				log.Debugf("chat connection not active yet [%s]\n", bot.nick)
+			for !bot.connactive && bot.open {
+				log.Debugf("chat connection not active yet [%p]\n", bot)
 				time.Sleep(time.Second)
 			}
 			conn := bot.getReadconn()
@@ -174,6 +179,9 @@ func (bot *Bot) CreateConnection(conntype connType) {
 }
 
 func (bot *Bot) reopen(conn *Connection) {
+	if !bot.open {
+		return
+	}
 	time.Sleep(time.Second)
 	bot.Lock()
 	defer bot.Unlock()
@@ -186,11 +194,14 @@ func (bot *Bot) reopen(conn *Connection) {
 func (bot *Bot) ListenToConnection(connection *Connection) {
 	reader := bufio.NewReader(connection.conn)
 	tp := textproto.NewReader(reader)
-	for {
+	for bot.open {
 		line, err := tp.ReadLine()
 		if err != nil {
 			log.Errorf("Error reading from chat connection: %s", err)
 			break // break loop on errors
+		}
+		if !bot.open {
+			return
 		}
 		if strings.Contains(line, "tmi.twitch.tv 001") {
 			connection.active = true
@@ -213,8 +224,11 @@ func (bot *Bot) ListenToConnection(connection *Connection) {
 func (bot *Bot) ListenForWhispers(connection *Connection) {
 	reader := bufio.NewReader(connection.conn)
 	tp := textproto.NewReader(reader)
-	for {
+	for bot.open {
 		line, err := tp.ReadLine()
+		if !bot.open {
+			return
+		}
 		if err != nil {
 			log.Errorf("Error reading from chat connection: %s", err)
 			break // break loop on errors
@@ -240,8 +254,11 @@ func (bot *Bot) ListenForWhispers(connection *Connection) {
 func (bot *Bot) KeepConnectionAlive(connection *Connection) {
 	reader := bufio.NewReader(connection.conn)
 	tp := textproto.NewReader(reader)
-	for {
+	for bot.open {
 		line, err := tp.ReadLine()
+		if !bot.open {
+			return
+		}
 		if err != nil {
 			log.Errorf("Error reading from chat connection: %v", err)
 			bot.CreateConnection(connSendconn)
@@ -281,20 +298,23 @@ func deleteConn(conn *Connection, s []*Connection) {
 }
 
 func (bot *Bot) checkConnections() {
-	ticker := time.NewTicker(60 * time.Second)
-	for {
-		<-ticker.C
-		for _, conn := range bot.readconn {
-			go bot.checkConnection(conn)
-		}
-		for _, conn := range bot.connlist {
-			go bot.checkConnection(conn)
-		}
-		go bot.checkConnection(bot.whisperconn)
+	if !bot.open {
+		return
 	}
+	for _, conn := range bot.readconn {
+		go bot.checkConnection(conn)
+	}
+	for _, conn := range bot.connlist {
+		go bot.checkConnection(conn)
+	}
+	go bot.checkConnection(bot.whisperconn)
 }
 
 func (bot *Bot) checkConnection(conn *Connection) {
+	if conn == nil || !bot.open {
+		log.Debug(conn)
+		return
+	}
 	died := conn.checkIfAlive()
 	if died {
 		bot.Lock()
@@ -320,7 +340,6 @@ func shuffleConnections(a []*Connection) {
 
 // Message to send a message
 func (bot *Bot) Message(message string) {
-	message = strings.TrimSpace(message)
 	shuffleConnections(bot.connlist)
 	for i := 0; i < len(bot.connlist); i++ {
 		if bot.connlist[i].messages < 15 {
@@ -345,10 +364,13 @@ func (bot *Bot) Message(message string) {
 // Close clean up bot things
 func (bot *Bot) Close() {
 	// Close the in connection
-	bot.inconn.Close()
+	bot.open = false
+	if bot.whisperconn != nil {
+		bot.whisperconn.conn.Close()
+	}
 
 	// Close all listens connections
-	for i := 0; i < len(bot.connlist); i++ {
-		bot.connlist[i].conn.Close()
+	for _, conn := range bot.connlist {
+		conn.conn.Close()
 	}
 }

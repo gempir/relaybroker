@@ -35,10 +35,9 @@ func (connection *Connection) checkIfAlive() bool {
 	connection.Message("PING")
 	time.Sleep(10 * time.Second)
 	if connection.alive {
-		log.Debug("connection still alive")
 		return false
 	}
-	log.Debug("connection died, reconnecting ... ")
+	log.Debugf("connection died, reconnecting ... %p\n", connection)
 	return true
 }
 

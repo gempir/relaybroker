@@ -7,10 +7,12 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"time"
 )
 
 var botlist = make(map[string]*Bot)
 var pendingBots []*Bot
+var xd int
 
 // TCPServer simple tcp server for commands
 func TCPServer() (ret int) {
@@ -57,12 +59,26 @@ func deletePendingBot(bot *Bot) {
 }
 
 func handleRequest(conn net.Conn, bot *Bot) {
-	go bot.checkConnections()
+	xd++
+	log.Debug(xd)
+	x := xd
+	bot.handler[x] = true
+	ticker := time.NewTicker(60 * time.Second)
+	go func() {
+		for {
+			<-ticker.C
+			if !bot.handler[x] || !bot.open {
+				return
+			}
+			bot.checkConnections()
+		}
+	}()
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
-	for {
-		line, err := tp.ReadLine()
 
+	for bot.open && bot.handler[x] {
+		log.Debug(bot.handler)
+		line, err := tp.ReadLine()
 		if err != nil {
 			fmt.Println("[control] read error:", err)
 			fmt.Fprintf(conn, "[control] read error: %s", err)
@@ -111,16 +127,26 @@ func handleMessage(message string, bot *Bot) error {
 				bot.nick = nickComm[1]
 				if oldBot, ok := botlist[bot.nick]; ok {
 					// replace bots
-					conn := oldBot.inconn
-					oldBot.inconn = bot.inconn
-					oldBot.join = bot.join
-					c := make(chan string)
-					bot.join = c
-					bot.inconn = conn
-					bot.connactive = true
-					close(c)
+					botlist[bot.nick] = bot
+					oldBot.open = false
+					bot.CreateConnection(connWhisperconn)
+					bot.CreateConnection(connSendconn)
+					bot.readconn = oldBot.readconn
+					for _, conn := range bot.readconn {
+						go bot.ListenToConnection(conn)
+					}
+					oldBot.readconn = make([]*Connection, 0)
+					oldBot.inconn = nil
+					oldBot.Close()
 					deletePendingBot(bot)
-					go handleRequest(oldBot.inconn, oldBot)
+					var x int
+					for k, v := range bot.handler {
+						if v {
+							x = k
+						}
+					}
+					bot.handler[x] = false
+					go handleRequest(bot.inconn, bot)
 
 					return fmt.Errorf("reconnected old bot %s", oldBot.nick)
 				}
