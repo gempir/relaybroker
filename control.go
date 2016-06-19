@@ -7,9 +7,12 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"time"
 )
 
-var botlist []*Bot
+var botlist = make(map[string]*Bot)
+var pendingBots []*Bot
+var xd int
 
 // TCPServer simple tcp server for commands
 func TCPServer() (ret int) {
@@ -24,8 +27,9 @@ func TCPServer() (ret int) {
 	for {
 		conn, err := ln.Accept()
 		bot := NewBot()
+		go bot.Join()
 		bot.inconn = conn
-		botlist = append(botlist, bot)
+		pendingBots = append(pendingBots, bot)
 		if err != nil {
 			log.Errorf("[control] error accepting: %v", err)
 			return 1
@@ -36,28 +40,45 @@ func TCPServer() (ret int) {
 
 // CloseBot close all connectons for a specific bot
 func CloseBot(bot *Bot) {
-	// Iterate over the list of bots
-	for i := range botlist {
-		if bot == botlist[i] {
-			// Remove the closed bot from the list
-			botlist = append(botlist[:i], botlist[i+1:]...)
-			return
-		}
-	}
+	log.Debugf("closing bot %s", bot.nick)
 
+	delete(botlist, bot.nick)
 	// Let the bot clean itself up
 	bot.Close()
 }
 
-func handleRequest(conn net.Conn, bot *Bot) {
-	defer CloseBot(bot)
-	defer bot.Close()
+func deletePendingBot(bot *Bot) {
+	log.Debug("deleting bot")
+	for i := range pendingBots {
+		if bot == pendingBots[i] {
+			// Remove the closed bot from the list
+			pendingBots = append(pendingBots[:i], pendingBots[i+1:]...)
+			return
+		}
+	}
+}
 
+func handleRequest(conn net.Conn, bot *Bot) {
+	xd++
+	log.Debug(xd)
+	x := xd
+	bot.handler[x] = true
+	ticker := time.NewTicker(60 * time.Second)
+	go func() {
+		for {
+			<-ticker.C
+			if !bot.handler[x] || !bot.open {
+				return
+			}
+			bot.checkConnections()
+		}
+	}()
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
-	for {
-		line, err := tp.ReadLine()
 
+	for bot.open && bot.handler[x] {
+		log.Debug(bot.handler)
+		line, err := tp.ReadLine()
 		if err != nil {
 			fmt.Println("[control] read error:", err)
 			fmt.Fprintf(conn, "[control] read error: %s", err)
@@ -70,6 +91,7 @@ func handleRequest(conn net.Conn, bot *Bot) {
 		err = handleMessage(line, bot)
 		if err != nil {
 			log.Error(err)
+			return
 		}
 	}
 }
@@ -82,7 +104,7 @@ func handleMessage(message string, bot *Bot) error {
 
 	if strings.HasPrefix(message, "JOIN ") {
 		joinComm := strings.Split(message, "JOIN ")
-		go bot.Join(joinComm[1])
+		bot.join <- joinComm[1]
 	} else if strings.HasPrefix(message, "PART ") {
 		partComm := strings.Split(message, "PART ")
 		go bot.Part(partComm[1])
@@ -103,17 +125,46 @@ func handleMessage(message string, bot *Bot) error {
 			if strings.HasPrefix(message, "NICK ") {
 				nickComm := strings.Split(message, "NICK ")
 				bot.nick = nickComm[1]
+				if oldBot, ok := botlist[bot.nick]; ok {
+					// replace bots
+					botlist[bot.nick] = bot
+					oldBot.open = false
+					bot.CreateConnection(connWhisperconn)
+					bot.CreateConnection(connSendconn)
+					bot.readconn = oldBot.readconn
+					for _, conn := range bot.readconn {
+						go bot.ListenToConnection(conn)
+					}
+					oldBot.readconn = make([]*Connection, 0)
+					oldBot.inconn = nil
+					oldBot.Close()
+					deletePendingBot(bot)
+					var x int
+					for k, v := range bot.handler {
+						if v {
+							x = k
+						}
+					}
+					bot.handler[x] = false
+					go handleRequest(bot.inconn, bot)
+
+					return fmt.Errorf("reconnected old bot %s", oldBot.nick)
+				}
+				botlist[bot.nick] = bot
+				deletePendingBot(bot)
+
 			} else if strings.HasPrefix(message, "USER ") {
 				nickComm := strings.Split(message, "USER ")
 				bot.nick = nickComm[1]
 			}
 
 			if bot.oauth != "" || strings.Contains(strings.ToLower(bot.nick), "justinfan") {
-				bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
-				go bot.CreateConnection()
+				bot.CreateConnection(connReadconn)
+				bot.CreateConnection(connReadconn)
+				go bot.CreateConnection(connWhisperconn)
+				go bot.CreateConnection(connSendconn)
+				go bot.CreateConnection(connSendconn)
+				go bot.CreateConnection(connSendconn)
 			}
 		}
 	} else if strings.HasPrefix(message, "PRIVMSG #jtv :/w ") {

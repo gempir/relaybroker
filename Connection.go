@@ -14,6 +14,9 @@ type Connection struct {
 	messages int32
 	active   bool
 	anon     bool
+	joins    []string
+	alive    bool
+	conntype connType
 }
 
 // NewConnection initialize a Connection struct
@@ -23,8 +26,19 @@ func NewConnection(conn net.Conn) Connection {
 		messages: 0,
 		active:   false,
 		anon:     true,
+		joins:    make([]string, 0),
 	}
+}
 
+func (connection *Connection) checkIfAlive() bool {
+	connection.alive = false
+	connection.Message("PING")
+	time.Sleep(10 * time.Second)
+	if connection.alive {
+		return false
+	}
+	log.Debugf("connection died, reconnecting ... %p\n", connection)
+	return true
 }
 
 func (connection *Connection) reduceConnectionMessages() {
