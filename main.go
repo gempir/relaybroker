@@ -2,18 +2,24 @@ package main
 
 import (
 	"github.com/op/go-logging"
-	"github.com/gempir/relaybroker/config"
+	"io/ioutil"
+    "encoding/json"
 	"os"
 )
 
 var (
-	cfg config.Config
+	cfg    Config
 	log    logging.Logger
 )
 
+type Config struct {
+	Broker_port string `json:"broker_port"`
+	Broker_pass string `json:"broker_pass"`
+}
+
 func main() {
 	log = initLogger()
-	cfg, err := config.ReadConfig("config.json")
+	cfg, err := readConfig("config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,4 +37,22 @@ func initLogger() logging.Logger {
 	backend1Leveled.SetLevel(logging.ERROR, "")
 	logging.SetBackend(backend1Leveled, backend2Formatter)
 	return *logger
+}
+
+func readConfig(path string) (Config, error) {
+	var cfg Config
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		return cfg, err
+	}
+    return unmarshalConfig(file)
+}
+
+func unmarshalConfig(file []byte) (Config, error) {
+    var cfg Config
+    err := json.Unmarshal(file, &cfg)
+	if err != nil {
+		return cfg, err
+	}
+	return cfg, nil
 }
