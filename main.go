@@ -1,15 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/op/go-logging"
 	"io/ioutil"
-    "encoding/json"
 	"os"
+	"strconv"
 )
 
 var (
-	cfg    Config
-	log    logging.Logger
+	cfg Config
+	log logging.Logger
 )
 
 type Config struct {
@@ -23,7 +24,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	log.Info("starting up on port", cfg.Broker_port)
+	server := new(Server)
+	port, err := strconv.Atoi(cfg.Broker_port)
+	if err != nil {
+		panic("can't parse broker port")
+	}
+	server.startServer(port)
 }
 
 func initLogger() logging.Logger {
@@ -45,12 +53,12 @@ func readConfig(path string) (Config, error) {
 	if err != nil {
 		return cfg, err
 	}
-    return unmarshalConfig(file)
+	return unmarshalConfig(file)
 }
 
 func unmarshalConfig(file []byte) (Config, error) {
-    var cfg Config
-    err := json.Unmarshal(file, &cfg)
+	var cfg Config
+	err := json.Unmarshal(file, &cfg)
 	if err != nil {
 		return cfg, err
 	}
