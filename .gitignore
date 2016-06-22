@@ -2,4 +2,4 @@
 main.exe
 relaybroker
 relaybroker.exe
-config.json
+./config.json
