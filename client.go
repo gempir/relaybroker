@@ -19,7 +19,10 @@ func newClient(conn net.Conn) Client {
 
 func (c *Client) handleMessage(line string) {
 	log.Debug(line)
-	if strings.HasPrefix(line, "PASS ") {
-        c.pass = strings.Split(line, "PASS ")[1]
+	spl := strings.Split(line, " ")
+	command := spl[0]
+	switch command {
+	case "PASS":
+		c.pass = spl[1]
 	}
 }
