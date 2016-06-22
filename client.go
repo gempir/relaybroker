@@ -19,10 +19,10 @@ func newClient(conn net.Conn) Client {
 
 func (c *Client) handleMessage(line string) {
 	log.Debug(line)
-	// spl[0] is the command and spl[1] the rest of the message
 	spl := strings.SplitN(line, " ", 2)
+	// irc command
 	switch spl[0] {
-	case "PASS":
-		c.pass = spl[1]
+		case "PASS":
+			c.pass = spl[1]
 	}
 }
