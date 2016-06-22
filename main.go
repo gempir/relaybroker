@@ -10,7 +10,7 @@ import (
 
 var (
 	cfg Config
-	log logging.Logger
+	Log logging.Logger
 )
 
 type Config struct {
@@ -19,13 +19,13 @@ type Config struct {
 }
 
 func main() {
-	log = initLogger()
+	Log = initLogger()
 	cfg, err := readConfig("config.json")
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
-	log.Info("starting up on port", cfg.Broker_port)
+	Log.Info("starting up on port", cfg.Broker_port)
 	server := new(Server)
 	port, err := strconv.Atoi(cfg.Broker_port)
 	if err != nil {

@@ -18,7 +18,7 @@ func newClient(conn net.Conn) Client {
 }
 
 func (c *Client) handleMessage(line string) {
-	log.Debug(line)
+	Log.Debug(line)
 	spl := strings.SplitN(line, " ", 2)
 	// irc command
 	switch spl[0] {
