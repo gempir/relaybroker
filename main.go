@@ -2,20 +2,21 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/op/go-logging"
 	"io/ioutil"
 	"os"
 	"strconv"
+
+	"github.com/op/go-logging"
 )
 
 var (
-	cfg Config
+	cfg config
 	Log logging.Logger
 )
 
-type Config struct {
-	Broker_port string `json:"broker_port"`
-	Broker_pass string `json:"broker_pass"`
+type config struct {
+	BrokerPort string `json:"broker_port"`
+	BrokerPass string `json:"broker_pass"`
 }
 
 func main() {
@@ -25,9 +26,9 @@ func main() {
 		Log.Fatal(err)
 	}
 
-	Log.Info("starting up on port", cfg.Broker_port)
+	Log.Info("starting up on port", cfg.BrokerPort)
 	server := new(Server)
-	port, err := strconv.Atoi(cfg.Broker_port)
+	port, err := strconv.Atoi(cfg.BrokerPort)
 	if err != nil {
 		panic("can't parse broker port")
 	}
@@ -47,8 +48,8 @@ func initLogger() logging.Logger {
 	return *logger
 }
 
-func readConfig(path string) (Config, error) {
-	var cfg Config
+func readConfig(path string) (config, error) {
+	var cfg config
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -56,8 +57,8 @@ func readConfig(path string) (Config, error) {
 	return unmarshalConfig(file)
 }
 
-func unmarshalConfig(file []byte) (Config, error) {
-	var cfg Config
+func unmarshalConfig(file []byte) (config, error) {
+	var cfg config
 	err := json.Unmarshal(file, &cfg)
 	if err != nil {
 		return cfg, err

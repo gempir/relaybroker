@@ -17,7 +17,7 @@ func TestCanReadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal("error reading config", err)
 	}
-	if cfg.Broker_pass != "test" || cfg.Broker_port != "3333" {
+	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
 		t.Fatal("invalid config")
 	}
 }
@@ -28,7 +28,7 @@ func TestCanUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to unmarshal config")
 	}
-	if cfg.Broker_pass != "test" || cfg.Broker_port != "3333" {
+	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
 		t.Fatal("invalid config")
 	}
 }
