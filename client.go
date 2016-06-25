@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Client for connection to relaybroker
 type Client struct {
 	incomingConn net.Conn
 	pass         string

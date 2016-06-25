@@ -11,6 +11,7 @@ import (
 
 var (
 	cfg config
+	// Log logger from go-logging
 	Log logging.Logger
 )
 

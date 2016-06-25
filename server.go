@@ -8,6 +8,7 @@ import (
 	"os"
 )
 
+// Server who handles incoming messages to relaybroker from a client
 type Server struct {
 	ln   net.Listener
 	conn net.Conn

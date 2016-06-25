@@ -22,6 +22,13 @@ func TestCanReadConfig(t *testing.T) {
 	}
 }
 
+func TestCanNotReadConfig(t *testing.T) {
+	_, err := readConfig("test_data/invalid_file.json")
+	if err == nil {
+		t.Fatal("Invalid file but no error thrown", err)
+	}
+}
+
 func TestCanUnmarshal(t *testing.T) {
 	file := []byte(`{"broker_port": "3333","broker_pass": "test"}`)
 	cfg, err := unmarshalConfig(file)
@@ -30,5 +37,13 @@ func TestCanUnmarshal(t *testing.T) {
 	}
 	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
 		t.Fatal("invalid config")
+	}
+}
+
+func TestCanNotUnmarshal(t *testing.T) {
+	file := []byte(`{myInvalidJson}`)
+	_, err := unmarshalConfig(file)
+	if err == nil {
+		t.Fatal("Didn't fail unmarshaling but should have")
 	}
 }
