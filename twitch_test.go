@@ -11,3 +11,7 @@ func TestCanCreateNewConnection(t *testing.T) {
 		t.Fatal("new connection of wrong type", reflect.TypeOf(ct).String())
 	}
 }
+
+func TestCanConnect(t *testing.T) {
+	connect(newConnection("justinfan123", ""))
+}
