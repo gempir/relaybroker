@@ -63,16 +63,13 @@ func (bot *bot) close() {
 func (bot *bot) checkConnections() {
 	for _ = range bot.ticker.C {
 		for _, co := range bot.readconns {
-			// you get an error when trying to use co itself
 			conn := co
 			conn.send("PING")
 			go func() {
 				time.Sleep(10 * time.Second)
 				if !conn.active {
-					for _, channel := range conn.joins {
-						bot.join <- channel
-					}
-					Log.Debug("read connection died, reconnecting...")
+					Log.Debug("send connection died, reconnecting...")
+					conn.restore()
 					conn.close()
 				}
 			}()
@@ -84,6 +81,7 @@ func (bot *bot) checkConnections() {
 				time.Sleep(10 * time.Second)
 				if !conn.active {
 					Log.Debug("send connection died, closing...")
+					conn.restore()
 					conn.close()
 				}
 			}()
@@ -123,7 +121,6 @@ func (bot *bot) joinChannel(channel string) {
 	}
 	for !conn.active {
 		time.Sleep(100 * time.Millisecond)
-		Log.Debug("conn not active yet")
 	}
 	conn.send("JOIN " + channel)
 	if _, ok := bot.channels[channel]; !ok {
@@ -172,15 +169,16 @@ func (bot *bot) say(msg string) {
 	}
 	if conn == nil {
 		bot.newConn(connSendConn)
+		Log.Debugf("created new conn, total: %d\n", len(bot.sendconns))
 		bot.say(msg)
 		return
 	}
 	for !conn.active {
 		time.Sleep(100 * time.Millisecond)
-		Log.Debug("conn not active yet")
 	}
-	conn.send("PRIVMSG " + msg)
 	conn.countMsg()
+	conn.send("PRIVMSG " + msg)
+	Log.Debugf("%p   %d\n", conn, conn.msgCount)
 	Log.Debug("sent:", msg)
 }
 
