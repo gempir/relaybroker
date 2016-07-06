@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/op/go-logging"
 )
@@ -15,6 +16,9 @@ var (
 	Log logging.Logger
 
 	bots = make(map[string]*bot)
+
+	// sync all bots joins since its ip based and not account based
+	joinTicker = time.NewTicker(300 * time.Millisecond)
 )
 
 type config struct {

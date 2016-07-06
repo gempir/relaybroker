@@ -98,6 +98,7 @@ func (bot *bot) checkConnections() {
 func (bot *bot) joinChannels() {
 	for channel := range bot.join {
 		bot.joinChannel(channel)
+		<-joinTicker.C
 	}
 }
 
