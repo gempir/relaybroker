@@ -162,7 +162,7 @@ func (bot *bot) readChat() {
 func (bot *bot) say(msg string) {
 	var conn *connection
 	for _, c := range bot.sendconns {
-		if c.msgCount < 15 {
+		if c.msgCount < 10 {
 			conn = c
 			break
 		}
@@ -175,6 +175,11 @@ func (bot *bot) say(msg string) {
 	}
 	for !conn.active {
 		time.Sleep(100 * time.Millisecond)
+	}
+	if conn.msgCount > 15 {
+		bot.say(msg)
+		// found it LUL
+		return
 	}
 	conn.countMsg()
 	conn.send("PRIVMSG " + msg)
