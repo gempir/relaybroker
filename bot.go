@@ -161,27 +161,25 @@ func (bot *bot) readChat() {
 // rate limiting is NOT tested properly, but it seems to work Keepo
 func (bot *bot) say(msg string) {
 	var conn *connection
+	var min = 15
+	// find connection with the least sent messages
 	for _, c := range bot.sendconns {
-		if c.msgCount < 10 {
+		if c.msgCount < min {
 			conn = c
-			break
+			min = conn.msgCount
 		}
 	}
-	if conn == nil {
+	if conn == nil || min > 10 {
 		bot.newConn(connSendConn)
 		Log.Debugf("created new conn, total: %d\n", len(bot.sendconns))
 		bot.say(msg)
 		return
 	}
+	// add to msg counter before waiting to stop other go routines from sending on this connection
+	conn.countMsg()
 	for !conn.active {
 		time.Sleep(100 * time.Millisecond)
 	}
-	if conn.msgCount > 15 {
-		bot.say(msg)
-		// found it LUL
-		return
-	}
-	conn.countMsg()
 	conn.send("PRIVMSG " + msg)
 	Log.Debugf("%p   %d\n", conn, conn.msgCount)
 	Log.Debug("sent:", msg)
