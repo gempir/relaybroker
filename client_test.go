@@ -7,7 +7,7 @@ import (
 func TestCanHandlePass(t *testing.T) {
 	c := new(Client)
 	c.handleMessage("PASS test;oauth:123test")
-	if c.bot.pass != "test;oauth:123test" {
+	if c.bot.pass != "oauth:123test" {
 		t.Fatal("pass doesn't match")
 	}
 	c.handleMessage("NICK Nuuls")
