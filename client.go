@@ -36,9 +36,13 @@ func (c *Client) joinChannels() {
 }
 
 func (c *Client) read() {
+	cha := make(chan string, 5)
+	go c.relaybrokerCommand(cha)
 	for msg := range c.toClient {
 		c.incomingConn.Write([]byte(msg + "\r\n"))
+		cha <- msg
 	}
+	close(cha)
 }
 
 func (c *Client) close() {

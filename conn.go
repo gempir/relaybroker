@@ -114,12 +114,14 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 			client.toClient <- line
 		}
 		conn.active = true
+		stats.totalMsgsReceived++
 	}
 }
 
 func (conn *connection) send(msg string) {
 	conn.Lock()
 	fmt.Fprint(conn.conn, msg+"\r\n")
+	stats.totalMsgsSent++
 	conn.Unlock()
 }
 
