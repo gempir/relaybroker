@@ -20,7 +20,7 @@ func newClient(conn net.Conn) Client {
 		incomingConn: conn,
 		fromClient:   make(chan string, 10),
 		toClient:     make(chan string, 10),
-		join:         make(chan string, 10000000),
+		join:         make(chan string, 50000),
 	}
 }
 
@@ -75,7 +75,7 @@ func (c *Client) handleMessage(line string) {
 			c.bot = bot
 			c.bot.client.toClient = c.toClient
 			close(c.join)
-			c.join = make(chan string, 10000000)
+			c.join = make(chan string, 50000)
 			go c.joinChannels()
 			c.bot.clientConnected = true
 			Log.Debug("old bot reconnected", msg)

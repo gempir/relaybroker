@@ -24,7 +24,7 @@ type bot struct {
 func newBot(client *Client) *bot {
 	return &bot{
 		read:      make(chan string, 10),
-		join:      make(chan string, 10000000),
+		join:      make(chan string, 50000),
 		channels:  make(map[string][]*connection),
 		readconns: make([]*connection, 0),
 		sendconns: make([]*connection, 0),
