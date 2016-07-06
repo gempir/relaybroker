@@ -39,6 +39,7 @@ func (s *Server) handleClient(c Client) {
 	Log.Info("new client: " + c.incomingConn.RemoteAddr().String())
 	r := bufio.NewReader(c.incomingConn)
 	tp := textproto.NewReader(r)
+	c.Init()
 
 	for {
 		line, err := tp.ReadLine()
@@ -46,6 +47,6 @@ func (s *Server) handleClient(c Client) {
 			Log.Error("closing client", c.incomingConn.RemoteAddr().String(), err)
 			return
 		}
-		go c.handleMessage(line)
+		c.handleMessage(line)
 	}
 }

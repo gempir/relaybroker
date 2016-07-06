@@ -13,6 +13,8 @@ var (
 	cfg config
 	// Log logger from go-logging
 	Log logging.Logger
+
+	bots = make(map[string]*bot)
 )
 
 type config struct {
@@ -41,7 +43,9 @@ func initLogger() logging.Logger {
 	logger = logging.MustGetLogger("relaybroker")
 	backend1 := logging.NewLogBackend(os.Stdout, "", 0)
 	backend2 := logging.NewLogBackend(os.Stdout, "", 0)
-	format := logging.MustStringFormatter(`%{color}[%{time:2006-01-02 15:04:05}] [%{level:.4s}] %{color:reset}%{message}`)
+	format := logging.MustStringFormatter(
+		`%{color}%{time:2006-01-02 15:04:05.000} %{shortfile:-15s} %{level:.4s}%{color:reset} %{message}`,
+	)
 	backend2Formatter := logging.NewBackendFormatter(backend2, format)
 	backend1Leveled := logging.AddModuleLevel(backend1)
 	backend1Leveled.SetLevel(logging.ERROR, "")
