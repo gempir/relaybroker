@@ -1,5 +1,6 @@
 # Ignore binary files
 relaybroker
 *.exe
+*.exe~
 config.json
 config.go

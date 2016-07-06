@@ -33,11 +33,6 @@ func newBot(client *Client) *bot {
 	}
 }
 
-func (bot *bot) getOldBot(toClient chan string) *bot {
-	bot.toClient = toClient
-	return bot
-}
-
 func (bot *bot) Init() {
 	go bot.joinChannels()
 	go bot.checkConnections()
