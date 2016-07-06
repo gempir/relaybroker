@@ -52,7 +52,7 @@ func (conn *connection) close() {
 }
 
 func (conn *connection) connect(read chan string, pass string, nick string) {
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/"}
+	u := url.URL{Scheme: "wss", Host: *addr, Path: "/"}
 	Log.Info("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
