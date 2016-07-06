@@ -46,6 +46,11 @@ func (conn *connection) login(pass string, nick string) {
 	conn.send("NICK justinfan123")
 }
 
+func (conn *connection) close() {
+	conn.conn.Close()
+	conn.alive = false
+}
+
 func (conn *connection) connect(read chan string, pass string, nick string) {
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/"}
 	Log.Info("connecting to %s", u.String())
@@ -58,10 +63,12 @@ func (conn *connection) connect(read chan string, pass string, nick string) {
 	conn.conn = c
 
 	conn.login(pass, nick)
+	conn.send("CAP REQ :twitch.tv/tags")
+	conn.send("CAP REQ :twitch.tv/commands")
 
 	//done := make(chan struct{})
 
-	defer c.Close()
+	defer conn.close()
 	// close(done)
 	for {
 		_, message, err := c.ReadMessage()
@@ -74,12 +81,14 @@ func (conn *connection) connect(read chan string, pass string, nick string) {
 		lines := strings.Split(m, "\r\n")
 		for _, l := range lines {
 			if l != "" {
-				Log.Debug(l)
 				if strings.HasPrefix(l, "PING") {
 					conn.send(strings.Replace(l, "PING", "PONG", 1))
+				} else if strings.HasPrefix(l, "PONG") {
+					Log.Debug("PONG")
+				} else {
+					read <- l
 				}
 				conn.active = true
-				read <- l
 			}
 		}
 	}
