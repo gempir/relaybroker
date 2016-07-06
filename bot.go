@@ -95,6 +95,23 @@ func (bot *bot) checkConnections() {
 	}
 }
 
+func (bot *bot) partChannel(channel string) {
+	if conns, ok := bot.channels[channel]; ok {
+		for _, conn := range conns {
+			conn.send("PART " + channel)
+			for i, ch := range conn.joins {
+				if ch == channel {
+					conn.joins = append(conn.joins[:i], conn.joins[i+1:]...)
+				}
+			}
+		}
+		Log.Debugf("left channel on %d connections\n", len(conns))
+		delete(bot.channels, channel)
+		return
+	}
+	Log.Error("never joined ", channel)
+}
+
 func (bot *bot) joinChannels() {
 	for channel := range bot.join {
 		bot.joinChannel(channel)
@@ -159,7 +176,6 @@ func (bot *bot) readChat() {
 	}
 }
 
-// rate limiting is NOT tested properly, but it seems to work Keepo
 func (bot *bot) say(msg string) {
 	var conn *connection
 	var min = 15
@@ -187,12 +203,13 @@ func (bot *bot) say(msg string) {
 }
 
 func (bot *bot) handleMessage(spl []string) {
+	Log.Debug(spl)
 	msg := spl[1]
 	switch spl[0] {
 	case "JOIN":
 		bot.join <- strings.ToLower(msg)
 	case "PART":
-		//
+		bot.partChannel(strings.ToLower(msg))
 	case "PRIVMSG":
 		bot.say(msg)
 	default:
