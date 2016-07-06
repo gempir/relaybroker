@@ -51,7 +51,7 @@ func (conn *connection) close() {
 	conn.alive = false
 }
 
-func (conn *connection) connect(read chan string, pass string, nick string) {
+func (conn *connection) connect(client *Client, pass string, nick string) {
 	u := url.URL{Scheme: "wss", Host: *addr, Path: "/"}
 	Log.Info("connecting to %s", u.String())
 
@@ -86,7 +86,7 @@ func (conn *connection) connect(read chan string, pass string, nick string) {
 				} else if strings.HasPrefix(l, "PONG") {
 					Log.Debug("PONG")
 				} else {
-					read <- l
+					client.toClient <- l
 				}
 				conn.active = true
 			}

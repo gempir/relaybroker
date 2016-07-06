@@ -13,7 +13,6 @@ type Client struct {
 	fromClient   chan string
 	toClient     chan string
 	join         chan string // TODO: this should be some kind of priority queue
-	connected    bool
 }
 
 func newClient(conn net.Conn) Client {
@@ -44,17 +43,21 @@ func (c *Client) read() {
 
 func (c *Client) close() {
 	close(c.join)
-	close(c.fromClient)
 	// keep bot running if he wants to reconnect
 	if c.ID != "" {
 		// dont let the channel fill up and block
-		for {
-			if c.connected {
+		for m := range c.toClient {
+			if c.bot.clientConnected {
+				bots[c.ID].toClient <- m
 				return
 			}
-			<-c.toClient
+			Log.Debug("msg on dc bot")
 		}
 	}
+	if c.bot.clientConnected {
+		return
+	}
+	close(c.fromClient)
 	close(c.toClient)
 	c.bot.close()
 	Log.Debug("CLOSED CLIENT", c.bot.nick)
@@ -68,13 +71,19 @@ func (c *Client) handleMessage(line string) {
 	switch spl[0] {
 	case "LOGIN": // log into relaybroker with bot id to enable reconnecting, example: LOGIN pajbot2
 		if bot, ok := bots[msg]; ok {
-			c.bot = bot
-			c.bot.toClient = c.toClient
 			c.ID = msg
-			Log.Debug("old bot reconnected")
+			c.bot = bot
+			c.bot.client.toClient = c.toClient
+			close(c.join)
+			c.join = make(chan string, 10000000)
+			go c.joinChannels()
+			c.bot.clientConnected = true
+			Log.Debug("old bot reconnected", msg)
 			return
 		}
-		c.bot = newBot(c.toClient)
+		c.bot = newBot(c)
+		c.ID = msg
+		c.bot.clientConnected = true
 		c.bot.Init()
 		bots[msg] = c.bot
 	case "PASS":
@@ -83,7 +92,7 @@ func (c *Client) handleMessage(line string) {
 			pass = strings.Split(msg, ";")[1]
 		}
 		if c.bot == nil {
-			c.bot = newBot(c.toClient)
+			c.bot = newBot(c)
 			c.bot.Init()
 		}
 		c.bot.pass = pass

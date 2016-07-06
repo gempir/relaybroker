@@ -6,29 +6,36 @@ import (
 )
 
 type bot struct {
-	ID          string
-	pass        string
-	nick        string
-	read        chan string
-	toClient    chan string
-	join        chan string
-	channels    map[string][]*connection
-	readconns   []*connection
-	sendconns   []*connection
-	whisperconn *connection
-	ticker      *time.Ticker
+	ID              string
+	pass            string
+	nick            string
+	read            chan string
+	toClient        chan string
+	join            chan string
+	channels        map[string][]*connection
+	readconns       []*connection
+	sendconns       []*connection
+	whisperconn     *connection
+	ticker          *time.Ticker
+	clientConnected bool
+	client          *Client
 }
 
-func newBot(toClient chan string) *bot {
+func newBot(client *Client) *bot {
 	return &bot{
 		read:      make(chan string, 10),
-		toClient:  toClient,
 		join:      make(chan string, 10000000),
 		channels:  make(map[string][]*connection),
 		readconns: make([]*connection, 0),
 		sendconns: make([]*connection, 0),
 		ticker:    time.NewTicker(1 * time.Minute),
+		client:    client,
 	}
+}
+
+func (bot *bot) getOldBot(toClient chan string) *bot {
+	bot.toClient = toClient
+	return bot
 }
 
 func (bot *bot) Init() {
@@ -121,6 +128,7 @@ func (bot *bot) joinChannel(channel string) {
 	}
 	for !conn.active {
 		time.Sleep(100 * time.Millisecond)
+		Log.Debug("conn not active yet")
 	}
 	conn.send("JOIN " + channel)
 	if _, ok := bot.channels[channel]; !ok {
@@ -136,18 +144,18 @@ func (bot *bot) newConn(t connType) {
 	switch t {
 	case connReadConn:
 		conn := newConnection(t)
-		go conn.connect(bot.toClient, bot.pass, bot.nick)
+		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.readconns = append(bot.readconns, conn)
 	case connSendConn:
 		conn := newConnection(t)
-		go conn.connect(bot.toClient, bot.pass, bot.nick)
+		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.sendconns = append(bot.sendconns, conn)
 	case connWhisperConn:
 		if bot.whisperconn != nil {
 			bot.whisperconn.close()
 		}
 		conn := newConnection(t)
-		go conn.connect(bot.toClient, bot.pass, bot.nick)
+		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.whisperconn = conn
 	}
 }
