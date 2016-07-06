@@ -1,12 +1,13 @@
 package main
 
 import (
-	"net/url"
+	"bufio"
+	"fmt"
+	"net"
+	"net/textproto"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 type connType uint32
@@ -19,11 +20,11 @@ const (
 
 type connection struct {
 	sync.Mutex
-	conn     *websocket.Conn
+	conn     net.Conn
 	active   bool
 	anon     bool
 	joins    []string
-	msgCount int32
+	msgCount int
 	alive    bool
 	conntype connType
 	client   *Client
@@ -81,14 +82,12 @@ func (conn *connection) restore() {
 }
 
 func (conn *connection) connect(client *Client, pass string, nick string) {
-	u := url.URL{Scheme: "wss", Host: *addr, Path: "/"}
-	Log.Info("connecting to %s", u.String())
-
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	c, err := net.Dial("tcp", *addr)
 	if err != nil {
-		Log.Error("dial:", err)
-		return
+		Log.Error("unable to connect to irc server", err)
+		conn.restore()
 	}
+
 	conn.conn = c
 	conn.client = client
 
@@ -96,37 +95,32 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	conn.send("CAP REQ :twitch.tv/tags")
 	conn.send("CAP REQ :twitch.tv/commands")
 
-	//done := make(chan struct{})
-
 	defer conn.close()
-	// close(done)
+	reader := bufio.NewReader(conn.conn)
+	tp := textproto.NewReader(reader)
 	for {
-		_, message, err := c.ReadMessage()
+		line, err := tp.ReadLine()
 		if err != nil {
 			Log.Debug("read:", err)
 			conn.restore()
 			return
 		}
-		// idk if i have to do this , seems a little wierd to me but it didnt work before
-		m := string(message)
-		lines := strings.Split(m, "\r\n")
-		for _, l := range lines {
-			if l != "" {
-				if strings.HasPrefix(l, "PING") {
-					conn.send(strings.Replace(l, "PING", "PONG", 1))
-				} else if strings.HasPrefix(l, "PONG") {
-					Log.Debug("PONG")
-				} else {
-					client.toClient <- l
-				}
-				conn.active = true
-			}
+
+		if strings.HasPrefix(line, "PING") {
+			conn.send(strings.Replace(line, "PING", "PONG", 1))
+		} else if strings.HasPrefix(line, "PONG") {
+			Log.Debug("PONG")
+		} else {
+			client.toClient <- line
 		}
+		conn.active = true
 	}
 }
 
 func (conn *connection) send(msg string) {
-	conn.conn.WriteMessage(websocket.TextMessage, []byte(msg))
+	conn.Lock()
+	fmt.Fprint(conn.conn, msg+"\r\n")
+	conn.Unlock()
 }
 
 func (conn *connection) reduceMsgCount() {
