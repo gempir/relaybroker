@@ -13,6 +13,7 @@ type Client struct {
 	fromClient   chan string
 	toClient     chan string
 	join         chan string // TODO: this should be some kind of priority queue
+	test         []string
 }
 
 func newClient(conn net.Conn) Client {
@@ -21,6 +22,7 @@ func newClient(conn net.Conn) Client {
 		fromClient:   make(chan string, 10),
 		toClient:     make(chan string, 10),
 		join:         make(chan string, 50000),
+		test:         make([]string, 0),
 	}
 }
 
@@ -69,6 +71,13 @@ func (c *Client) close() {
 }
 
 func (c *Client) handleMessage(line string) {
+	c.test = append(c.test, line)
+	defer func() {
+		if r := recover(); r != nil {
+			Log.Error(c.test)
+			Log.Fatal(r)
+		}
+	}()
 	spl := strings.SplitN(line, " ", 2)
 	msg := spl[1]
 	// irc command
