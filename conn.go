@@ -68,7 +68,7 @@ func (conn *connection) restore() {
 	if conn.conntype == connReadConn {
 		var i int
 		var channels []string
-		for index, co := range conn.client.bot.sendconns {
+		for index, co := range conn.client.bot.readconns {
 			if conn == co {
 				i = index
 				channels = co.joins
