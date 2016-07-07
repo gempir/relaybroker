@@ -18,7 +18,6 @@ var (
 	tcpPass string
 )
 
-
 // TCPServer simple tcp server for commands
 func TCPServer(brokerPort int, brokerPass string) (ret int) {
 	tcpPass = brokerPass
