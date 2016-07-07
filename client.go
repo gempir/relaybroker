@@ -95,10 +95,8 @@ func (c *Client) handleMessage(line string) {
 		if strings.HasPrefix(msg, "test;") {
 			pass = strings.Split(msg, ";")[1]
 		}
-		if c.bot == nil {
-			c.bot = newBot(c)
-			c.bot.Init()
-		}
+		c.bot = newBot(c)
+		c.bot.Init()
 		c.bot.pass = pass
 	case "NICK":
 		c.bot.nick = strings.ToLower(msg) // make sure the nick is lowercase
