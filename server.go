@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"net/textproto"
 	"os"
@@ -14,11 +13,10 @@ type Server struct {
 	conn net.Conn
 }
 
-func (s *Server) startServer(TCPPort int) {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", TCPPort))
+func (s *Server) startServer() {
+	ln, err := net.Listen("tcp", ":"+cfg.BrokerPort)
 	if err != nil {
-		Log.Error(err)
-		panic("tcp server not starting")
+		Log.Fatal("tcp server not starting", err)
 	}
 	defer ln.Close()
 	for {

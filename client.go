@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 )
@@ -38,13 +40,13 @@ func (c *Client) joinChannels() {
 }
 
 func (c *Client) read() {
-	cha := make(chan string, 5)
-	go c.relaybrokerCommand(cha)
+	// cha := make(chan string, 5)
+	// go c.relaybrokerCommand(cha)
 	for msg := range c.toClient {
 		c.incomingConn.Write([]byte(msg + "\r\n"))
-		cha <- msg
+		//cha <- msg
 	}
-	closeChannel(cha)
+	//closeChannel(cha)
 }
 
 func closeChannel(c chan string) {
@@ -59,7 +61,7 @@ func closeChannel(c chan string) {
 func (c *Client) close() {
 	closeChannel(c.join)
 	// keep bot running if he wants to reconnect
-	if c.ID != "" {
+	if c.bot.ID != "" {
 		// dont let the channel fill up and block
 		for m := range c.toClient {
 			if c.bot.clientConnected {
@@ -75,6 +77,7 @@ func (c *Client) close() {
 	closeChannel(c.fromClient)
 	closeChannel(c.toClient)
 	c.bot.close()
+	delete(bots, c.ID)
 	Log.Debug("CLOSED CLIENT", c.bot.nick)
 
 }
@@ -92,8 +95,7 @@ func (c *Client) handleMessage(line string) {
 	msg := spl[1]
 	// irc command
 	switch spl[0] {
-	// login broken
-	case "LOGIN  ": // log into relaybroker with bot id to enable reconnecting, example: LOGIN pajbot2
+	case "LOGIN": // log into relaybroker with bot id to enable reconnecting, example: LOGIN pajbot2
 		if bot, ok := bots[msg]; ok {
 			c.ID = msg
 			c.bot = bot
@@ -107,19 +109,38 @@ func (c *Client) handleMessage(line string) {
 		}
 		c.bot = newBot(c)
 		c.ID = msg
+		c.bot.ID = msg
 		c.bot.clientConnected = true
 		c.bot.Init()
 		bots[msg] = c.bot
 	case "PASS":
 		pass := msg
-		if strings.HasPrefix(msg, "test;") {
-			pass = strings.Split(msg, ";")[1]
+		if strings.Contains(msg, ";") {
+			passwords := strings.Split(msg, ";")
+			pass = passwords[1]
+			if cfg.BrokerPass != "" {
+				if passwords[0] != cfg.BrokerPass {
+					c.toClient <- "invalid relaybroker password\r\n"
+					c.close()
+					Log.Error("invalid relaybroker password")
+					return
+				}
+			}
 		}
-		c.bot = newBot(c)
-		c.bot.Init()
+		if c.bot == nil {
+			c.bot = newBot(c)
+			c.bot.Init()
+		}
 		c.bot.pass = pass
 	case "NICK":
 		c.bot.nick = strings.ToLower(msg) // make sure the nick is lowercase
+		// generate random ID
+		if c.bot.ID == "" {
+			r := rand.Int31n(123456)
+			ID := fmt.Sprintf("%d%s%d", 1, c.bot.nick, r)
+			bots[ID] = c.bot
+			c.ID = ID
+		}
 	case "JOIN":
 		c.join <- msg
 	case "USER":

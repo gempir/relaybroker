@@ -6,7 +6,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/op/go-logging"
@@ -26,26 +25,27 @@ var (
 type config struct {
 	BrokerPort string `json:"broker_port"`
 	BrokerPass string `json:"broker_pass"`
+	APIHost    string `json:"api_host"`
+	APIPath    string `json:"api_path"`
 }
 
 func main() {
 
 	Log = initLogger()
-	cfg, err := readConfig("config.json")
+	var err error
+	cfg, err = readConfig("config.json")
 	if err != nil {
 		Log.Fatal(err)
 	}
+	statsAPI()
+	go func() {
+		Log.Error(http.ListenAndServe(cfg.APIHost, nil))
+	}()
 
 	Log.Info("starting up on port", cfg.BrokerPort)
 	server := new(Server)
-	port, err := strconv.Atoi(cfg.BrokerPort)
-	if err != nil {
-		panic("can't parse broker port")
-	}
-	go func() {
-		Log.Error(http.ListenAndServe("localhost:9001", nil))
-	}()
-	server.startServer(port)
+
+	server.startServer()
 }
 
 func initLogger() logging.Logger {
