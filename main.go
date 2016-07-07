@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"time"
@@ -27,6 +29,7 @@ type config struct {
 }
 
 func main() {
+
 	Log = initLogger()
 	cfg, err := readConfig("config.json")
 	if err != nil {
@@ -39,6 +42,9 @@ func main() {
 	if err != nil {
 		panic("can't parse broker port")
 	}
+	go func() {
+		Log.Error(http.ListenAndServe("localhost:9001", nil))
+	}()
 	server.startServer(port)
 }
 
