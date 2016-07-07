@@ -103,6 +103,7 @@ func (bot *bot) checkConnections() {
 }
 
 func (bot *bot) partChannel(channel string) {
+	channel = strings.ToLower(channel)
 	if conns, ok := bot.channels[channel]; ok {
 		for _, conn := range conns {
 			conn.send("PART " + channel)
@@ -127,6 +128,7 @@ func (bot *bot) joinChannels() {
 }
 
 func (bot *bot) joinChannel(channel string) {
+	channel = strings.ToLower(channel)
 	if _, ok := bot.channels[channel]; ok {
 		// TODO: check msg ids and join channels more than one time
 		Log.Debug("already joined channel", channel)
