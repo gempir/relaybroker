@@ -46,20 +46,25 @@ func (bot *bot) Init() {
 
 // close all connections and delete bot
 func (bot *bot) close() {
+	bot.Lock()
 	bot.ticker.Stop()
 	close(bot.read)
 	close(bot.join)
 	for _, conn := range bot.readconns {
+		conn.conntype = connDelete
 		conn.close()
 	}
 	for _, conn := range bot.sendconns {
+		conn.conntype = connDelete
 		conn.close()
 	}
+	bot.whisperconn.conntype = connDelete
 	bot.whisperconn.close()
 	for k := range bot.channels {
 		delete(bot.channels, k)
 	}
 	Log.Debug("CLOSED BOT", bot.nick)
+	bot.Unlock()
 }
 
 func (bot *bot) checkConnections() {

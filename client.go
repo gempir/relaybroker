@@ -47,8 +47,17 @@ func (c *Client) read() {
 	close(cha)
 }
 
+func closeChannel(c chan string) {
+	defer func() {
+		if r := recover(); r != nil {
+			Log.Error(r)
+		}
+	}()
+	close(c)
+}
+
 func (c *Client) close() {
-	close(c.join)
+	closeChannel(c.join)
 	// keep bot running if he wants to reconnect
 	if c.ID != "" {
 		// dont let the channel fill up and block
@@ -63,8 +72,8 @@ func (c *Client) close() {
 	if c.bot.clientConnected {
 		return
 	}
-	close(c.fromClient)
-	close(c.toClient)
+	closeChannel(c.fromClient)
+	closeChannel(c.toClient)
 	c.bot.close()
 	Log.Debug("CLOSED CLIENT", c.bot.nick)
 
@@ -75,7 +84,8 @@ func (c *Client) handleMessage(line string) {
 	defer func() {
 		if r := recover(); r != nil {
 			Log.Error(c.test)
-			Log.Fatal(r)
+			Log.Error(r)
+			c.close()
 		}
 	}()
 	spl := strings.SplitN(line, " ", 2)

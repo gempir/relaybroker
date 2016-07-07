@@ -16,6 +16,7 @@ const (
 	connWhisperConn = iota
 	connReadConn
 	connSendConn
+	connDelete
 )
 
 type connection struct {
@@ -50,7 +51,9 @@ func (conn *connection) login(pass string, nick string) {
 }
 
 func (conn *connection) close() {
-	conn.conn.Close()
+	if conn.conn != nil {
+		conn.conn.Close()
+	}
 	conn.alive = false
 }
 
@@ -75,7 +78,7 @@ func (conn *connection) restore() {
 		for _, ch := range channels {
 			conn.client.bot.join <- ch
 		}
-	} else {
+	} else if conn.conntype == connSendConn {
 		var i int
 		for index, co := range conn.client.bot.sendconns {
 			if conn == co {
@@ -101,7 +104,12 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	conn.send("CAP REQ :twitch.tv/tags")
 	conn.send("CAP REQ :twitch.tv/commands")
 
-	defer conn.close()
+	defer func() {
+		if r := recover(); r != nil {
+			Log.Error(r)
+		}
+		conn.close()
+	}()
 	reader := bufio.NewReader(conn.conn)
 	tp := textproto.NewReader(reader)
 	for {
@@ -111,7 +119,9 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 			conn.restore()
 			return
 		}
-
+		if conn.conntype == connDelete {
+			conn.restore()
+		}
 		if strings.HasPrefix(line, "PING") {
 			conn.send(strings.Replace(line, "PING", "PONG", 1))
 		} else if strings.HasPrefix(line, "PONG") {
