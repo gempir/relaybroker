@@ -55,6 +55,12 @@ func (conn *connection) close() {
 }
 
 func (conn *connection) restore() {
+	/*
+	   i was sometimes getting slice bounds out of range errors when restoring
+	   a lot of connections at a time due to network outages, i hope this fixes it
+	*/
+	conn.client.bot.Lock()
+	defer conn.client.bot.Unlock()
 	if conn.conntype == connReadConn {
 		var i int
 		var channels []string

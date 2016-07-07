@@ -2,10 +2,12 @@ package main
 
 import (
 	"strings"
+	"sync"
 	"time"
 )
 
 type bot struct {
+	sync.Mutex
 	ID              string
 	pass            string
 	nick            string
