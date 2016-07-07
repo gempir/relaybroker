@@ -44,7 +44,7 @@ func (c *Client) read() {
 		c.incomingConn.Write([]byte(msg + "\r\n"))
 		cha <- msg
 	}
-	close(cha)
+	closeChannel(cha)
 }
 
 func closeChannel(c chan string) {
@@ -92,7 +92,8 @@ func (c *Client) handleMessage(line string) {
 	msg := spl[1]
 	// irc command
 	switch spl[0] {
-	case "LOGIN": // log into relaybroker with bot id to enable reconnecting, example: LOGIN pajbot2
+	// login broken
+	case "LOGIN  ": // log into relaybroker with bot id to enable reconnecting, example: LOGIN pajbot2
 		if bot, ok := bots[msg]; ok {
 			c.ID = msg
 			c.bot = bot
