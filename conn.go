@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/textproto"
@@ -91,7 +92,7 @@ func (conn *connection) restore() {
 }
 
 func (conn *connection) connect(client *Client, pass string, nick string) {
-	c, err := net.Dial("tcp", *addr)
+	c, err := tls.Dial("tcp", *addr, nil)
 	if err != nil {
 		Log.Error("unable to connect to irc server", err)
 		conn.restore()
