@@ -8,20 +8,27 @@ import (
 	"net/textproto"
 	"strings"
 	"time"
+	"strconv"
 )
 
-var botlist = make(map[string]*Bot)
-var pendingBots []*Bot
-var xd int
+var (
+	botlist = make(map[string]*Bot)
+	pendingBots []*Bot
+	xd int
+	tcpPass string
+)
 
 // TCPServer simple tcp server for commands
-func TCPServer() (ret int) {
-	ln, err := net.Listen("tcp", ":"+TCPPort)
+func TCPServer(brokerPort int, brokerPass string) (ret int) {
+	tcpPass = brokerPass
+	tcpPort := strconv.Itoa(brokerPort)
+
+	ln, err := net.Listen("tcp", ":"+tcpPort)
 	if err != nil {
 		log.Errorf("[control] error listening %v", err)
 		return 1
 	}
-	log.Debugf("[control] listening to port %s for connections...", TCPPort)
+	log.Debugf("[control] listening to port %s for connections...", tcpPort)
 	defer ln.Close()
 
 	for {
@@ -77,7 +84,6 @@ func handleRequest(conn net.Conn, bot *Bot) {
 	tp := textproto.NewReader(reader)
 
 	for bot.open && bot.handler[x] {
-		log.Debug(bot.handler)
 		line, err := tp.ReadLine()
 		if err != nil {
 			fmt.Println("[control] read error:", err)
@@ -111,7 +117,7 @@ func handleMessage(message string, bot *Bot) error {
 	} else if strings.HasPrefix(message, "PASS ") {
 		passComm := strings.Split(message, "PASS ")
 		passwordParts := strings.Split(passComm[1], ";")
-		if passwordParts[0] == TCPPass {
+		if passwordParts[0] == tcpPass {
 			bot.oauth = passwordParts[1]
 			bot.login = true
 			bot.anon = false
