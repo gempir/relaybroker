@@ -85,7 +85,6 @@ func handleRequest(conn net.Conn, bot *Bot) {
 	tp := textproto.NewReader(reader)
 
 	for bot.open && bot.handler[x] {
-		log.Debug(bot.handler)
 		line, err := tp.ReadLine()
 		if err != nil {
 			fmt.Println("[control] read error:", err)
