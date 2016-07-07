@@ -1,227 +1,376 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"math/rand"
+	"net"
+	"net/textproto"
 	"strings"
 	"sync"
 	"time"
 )
 
-type bot struct {
+type connType uint32
+
+const (
+	connWhisperconn connType = iota + 1
+	connSendconn
+	connReadconn
+)
+
+type msgType uint32
+
+const (
+	msgPrivmsg msgType = iota + 1
+	msgWhisper
+	msgOther
+)
+
+// Bot struct for main config
+type Bot struct {
 	sync.Mutex
-	ID              string
-	pass            string
-	nick            string
-	read            chan string
-	toClient        chan string
-	join            chan string
-	channels        map[string][]*connection
-	readconns       []*connection
-	sendconns       []*connection
-	whisperconn     *connection
-	ticker          *time.Ticker
-	clientConnected bool
-	client          *Client
+	server      string
+	port        string
+	oauth       string
+	nick        string
+	inconn      net.Conn
+	whisperconn *Connection
+	readconn    []*Connection
+	connlist    []*Connection
+	connactive  bool
+	login       bool
+	anon        bool
+	join        chan string
+	open        bool
+	handler     map[int]bool
 }
 
-func newBot(client *Client) *bot {
-	return &bot{
-		read:      make(chan string, 10),
-		join:      make(chan string, 50000),
-		channels:  make(map[string][]*connection),
-		readconns: make([]*connection, 0),
-		sendconns: make([]*connection, 0),
-		ticker:    time.NewTicker(1 * time.Minute),
-		client:    client,
-	}
-}
-
-func (bot *bot) Init() {
-	go bot.joinChannels()
-	go bot.checkConnections()
-	bot.newConn(connReadConn)
-	// twitch changed something about whispers or there is some black magic going on,
-	// but its only reading whispers once even with more connections
-	bot.newConn(connWhisperConn)
-}
-
-// close all connections and delete bot
-func (bot *bot) close() {
-	bot.Lock()
-	bot.ticker.Stop()
-	close(bot.read)
-	close(bot.join)
-	for _, conn := range bot.readconns {
-		conn.conntype = connDelete
-		conn.close()
-	}
-	for _, conn := range bot.sendconns {
-		conn.conntype = connDelete
-		conn.close()
-	}
-	bot.whisperconn.conntype = connDelete
-	bot.whisperconn.close()
-	for k := range bot.channels {
-		delete(bot.channels, k)
-	}
-	Log.Debug("CLOSED BOT", bot.nick)
-	bot.Unlock()
-}
-
-func (bot *bot) checkConnections() {
-	for _ = range bot.ticker.C {
-		for _, co := range bot.readconns {
-			conn := co
-			conn.send("PING")
-			go func() {
-				time.Sleep(10 * time.Second)
-				if !conn.active {
-					Log.Debug("send connection died, reconnecting...")
-					conn.restore()
-					conn.close()
-				}
-			}()
-		}
-		for _, co := range bot.sendconns {
-			conn := co
-			go func() {
-				conn.send("PING")
-				time.Sleep(10 * time.Second)
-				if !conn.active {
-					Log.Debug("send connection died, closing...")
-					conn.restore()
-					conn.close()
-				}
-			}()
-		}
-
-		bot.whisperconn.send("PING")
-		time.Sleep(10 * time.Second)
-		if !bot.whisperconn.active {
-			bot.newConn(connWhisperConn)
-		}
+// NewBot main config
+func NewBot() *Bot {
+	return &Bot{
+		server:     "irc.chat.twitch.tv",
+		port:       "80",
+		oauth:      "",
+		nick:       "",
+		inconn:     nil,
+		readconn:   make([]*Connection, 0),
+		connlist:   make([]*Connection, 0),
+		connactive: false,
+		login:      false,
+		anon:       true,
+		join:       make(chan string, 100000),
+		open:       true,
+		handler:    make(map[int]bool),
 	}
 }
 
-func (bot *bot) partChannel(channel string) {
-	channel = strings.ToLower(channel)
-	if conns, ok := bot.channels[channel]; ok {
-		for _, conn := range conns {
-			conn.send("PART " + channel)
-			for i, ch := range conn.joins {
-				if ch == channel {
-					conn.joins = append(conn.joins[:i], conn.joins[i+1:]...)
-				}
-			}
-		}
-		Log.Debugf("left channel on %d connections\n", len(conns))
-		delete(bot.channels, channel)
-		return
+func getmsgType(line string) msgType {
+	if !strings.Contains(line, ".tmi.twitch.tv ") {
+		return msgOther
 	}
-	Log.Error("never joined ", channel)
-}
-
-func (bot *bot) joinChannels() {
-	for channel := range bot.join {
-		bot.joinChannel(channel)
-		<-joinTicker.C
+	spl := strings.SplitN(line, ".tmi.twitch.tv ", 2)
+	t := strings.Split(spl[1], " ")[0]
+	if t == "WHISPER" {
+		return msgWhisper
+	} else if t == "PRIVMSG" {
+		return msgPrivmsg
+	} else {
+		return msgOther
 	}
 }
 
-func (bot *bot) joinChannel(channel string) {
-	channel = strings.ToLower(channel)
-	if _, ok := bot.channels[channel]; ok {
-		// TODO: check msg ids and join channels more than one time
-		Log.Debug("already joined channel", channel)
-		return
-	}
-	var conn *connection
-	for _, c := range bot.readconns {
+func (bot *Bot) getReadconn() *Connection {
+	var conn *Connection
+	for _, c := range bot.readconn {
 		if len(c.joins) < 50 {
 			conn = c
 			break
 		}
 	}
 	if conn == nil {
-		bot.newConn(connReadConn)
-		bot.joinChannel(channel)
-		return
+		bot.CreateConnection(connReadconn)
+		return bot.getReadconn()
 	}
-	for !conn.active {
-		time.Sleep(100 * time.Millisecond)
-	}
-	conn.send("JOIN " + channel)
-	if _, ok := bot.channels[channel]; !ok {
-		bot.channels[channel] = make([]*connection, 0)
-	}
-
-	bot.channels[channel] = append(bot.channels[channel], conn)
-	Log.Debug("joined channel", channel)
-
+	return conn
 }
 
-func (bot *bot) newConn(t connType) {
-	switch t {
-	case connReadConn:
-		conn := newConnection(t)
-		go conn.connect(bot.client, bot.pass, bot.nick)
-		bot.readconns = append(bot.readconns, conn)
-	case connSendConn:
-		conn := newConnection(t)
-		go conn.connect(bot.client, bot.pass, bot.nick)
-		bot.sendconns = append(bot.sendconns, conn)
-	case connWhisperConn:
-		if bot.whisperconn != nil {
-			bot.whisperconn.close()
+// Join joins a channel
+func (bot *Bot) Join() {
+	var isOpen = true
+	for isOpen {
+		channel, isOpen := <-bot.join
+		if !isOpen {
+			bot.Close()
+			return
 		}
-		conn := newConnection(t)
-		go conn.connect(bot.client, bot.pass, bot.nick)
-		bot.whisperconn = conn
-	}
-}
+		alreadyJoined := false
+		func() {
+			for _, co := range bot.readconn {
+				for _, ch := range co.joins {
+					if channel == ch {
+						alreadyJoined = true
+						return
+					}
+				}
+			}
+		}()
 
-func (bot *bot) readChat() {
-	for msg := range bot.toClient {
-		bot.read <- msg
-	}
-}
-
-func (bot *bot) say(msg string) {
-	var conn *connection
-	var min = 15
-	// find connection with the least sent messages
-	for _, c := range bot.sendconns {
-		if c.msgCount < min {
-			conn = c
-			min = conn.msgCount
+		if alreadyJoined {
+			log.Debug("already joined channel ", channel)
+			log.Debugf("%p\n", bot)
+		} else {
+			for !bot.connactive && bot.open {
+				log.Debugf("chat connection not active yet [%p]\n", bot)
+				time.Sleep(time.Second)
+			}
+			conn := bot.getReadconn()
+			fmt.Fprintf(conn.conn, "JOIN %s\r\n", channel)
+			log.Debugf("[chat] joined %s", channel)
+			conn.joins = append(conn.joins, channel)
+			time.Sleep(300 * time.Millisecond)
 		}
 	}
-	if conn == nil || min > 10 {
-		bot.newConn(connSendConn)
-		Log.Debugf("created new conn, total: %d\n", len(bot.sendconns))
-		bot.say(msg)
-		return
-	}
-	// add to msg counter before waiting to stop other go routines from sending on this connection
-	conn.countMsg()
-	for !conn.active {
-		time.Sleep(100 * time.Millisecond)
-	}
-	conn.send("PRIVMSG " + msg)
-	Log.Debugf("%p   %d\n", conn, conn.msgCount)
-	Log.Debug("sent:", msg)
 }
 
-func (bot *bot) handleMessage(spl []string) {
-	Log.Debug(spl)
-	msg := spl[1]
-	switch spl[0] {
-	case "JOIN":
-		bot.join <- strings.ToLower(msg)
-	case "PART":
-		bot.partChannel(strings.ToLower(msg))
-	case "PRIVMSG":
-		bot.say(msg)
-	default:
-		Log.Error("unhandled message", spl[0], msg)
+// Whisper to send whispers
+func (bot *Bot) Whisper(message string) {
+	bot.Message("PRIVMSG #jtv :" + message)
+}
+
+// Part part channels
+func (bot *Bot) Part(channel string) {
+	// loop connections and find channel
+}
+
+// CreateConnection Add a new connection
+func (bot *Bot) CreateConnection(conntype connType) {
+	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
+	if err != nil {
+		log.Errorf("unable to connect to chat IRC server %v", err)
+		bot.CreateConnection(conntype)
+		return
+	}
+	connection := NewConnection(conn)
+	connection.conntype = conntype
+
+	if bot.oauth != "" {
+		fmt.Fprintf(connection.conn, "PASS %s\r\n", bot.oauth)
+		connection.anon = false
+	}
+	fmt.Fprintf(connection.conn, "USER %s\r\n", bot.nick)
+	fmt.Fprintf(connection.conn, "NICK %s\r\n", bot.nick)
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")
+	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n")
+	log.Debugf("new connection to chat IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
+
+	if conntype == connReadconn {
+		bot.readconn = append(bot.readconn, &connection)
+		go bot.ListenToConnection(&connection)
+
+	} else if conntype == connWhisperconn {
+		bot.whisperconn = &connection
+		go bot.ListenForWhispers(&connection)
+
+	} else {
+		go bot.KeepConnectionAlive(&connection)
+		bot.connlist = append(bot.connlist, &connection)
+	}
+}
+
+func (bot *Bot) reopen(conn *Connection) {
+	if !bot.open {
+		return
+	}
+	time.Sleep(time.Second)
+	bot.Lock()
+	defer bot.Unlock()
+	deleteConn(conn, bot.readconn)
+	bot.CreateConnection(conn.conntype)
+	bot.rejoinChannels(conn.joins)
+}
+
+// ListenToConnection listen
+func (bot *Bot) ListenToConnection(connection *Connection) {
+	reader := bufio.NewReader(connection.conn)
+	tp := textproto.NewReader(reader)
+	for bot.open {
+		line, err := tp.ReadLine()
+		if err != nil {
+			log.Errorf("Error reading from chat connection: %s", err)
+			break // break loop on errors
+		}
+		if !bot.open {
+			return
+		}
+		if strings.Contains(line, "tmi.twitch.tv 001") {
+			connection.active = true
+			bot.connactive = true
+		}
+		if strings.HasPrefix(line, "PING ") {
+			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
+		}
+		if strings.HasPrefix(line, "PONG ") {
+			connection.alive = true
+		}
+		if getmsgType(line) != msgWhisper && !strings.HasPrefix(line, "PONG ") {
+			fmt.Fprint(bot.inconn, line+"\r\n")
+		}
+	}
+	bot.reopen(connection)
+}
+
+//ListenForWhispers only reads whispers
+func (bot *Bot) ListenForWhispers(connection *Connection) {
+	reader := bufio.NewReader(connection.conn)
+	tp := textproto.NewReader(reader)
+	for bot.open {
+		line, err := tp.ReadLine()
+		if !bot.open {
+			return
+		}
+		if err != nil {
+			log.Errorf("Error reading from chat connection: %s", err)
+			break // break loop on errors
+		}
+		if strings.Contains(line, "tmi.twitch.tv 001") {
+			connection.active = true
+			bot.connactive = true
+		}
+		if strings.HasPrefix(line, "PING ") {
+			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
+		}
+		if strings.HasPrefix(line, "PONG ") {
+			connection.alive = true
+		}
+		if getmsgType(line) == msgWhisper {
+			fmt.Fprint(bot.inconn, line+"\r\n")
+		}
+	}
+	bot.reopen(connection)
+}
+
+// KeepConnectionAlive listen
+func (bot *Bot) KeepConnectionAlive(connection *Connection) {
+	reader := bufio.NewReader(connection.conn)
+	tp := textproto.NewReader(reader)
+	for bot.open {
+		line, err := tp.ReadLine()
+		if !bot.open {
+			return
+		}
+		if err != nil {
+			log.Errorf("Error reading from chat connection: %v", err)
+			bot.CreateConnection(connSendconn)
+			break // break loop on errors
+		}
+		if strings.Contains(line, "tmi.twitch.tv 001") {
+			connection.active = true
+		}
+		if strings.HasPrefix(line, "PING ") {
+			fmt.Fprintf(connection.conn, "PONG tmi.twitch.tv\r\n")
+		}
+		if strings.HasPrefix(line, "PONG ") {
+			connection.alive = true
+		}
+	}
+	bot.reopen(connection)
+}
+
+func (bot *Bot) rejoinChannels(channels []string) {
+	for _, channel := range channels {
+		bot.join <- channel
+	}
+}
+
+func getIndex(conn *Connection, s []*Connection) int {
+	for i, c := range s {
+		if c == conn {
+			return i
+		}
+	}
+	return 0
+}
+
+func deleteConn(conn *Connection, s []*Connection) {
+	i := getIndex(conn, s)
+	s = append(s[:i], s[i+1:]...)
+}
+
+func (bot *Bot) checkConnections() {
+	if !bot.open {
+		return
+	}
+	for _, conn := range bot.readconn {
+		go bot.checkConnection(conn)
+	}
+	for _, conn := range bot.connlist {
+		go bot.checkConnection(conn)
+	}
+	go bot.checkConnection(bot.whisperconn)
+}
+
+func (bot *Bot) checkConnection(conn *Connection) {
+	if conn == nil || !bot.open {
+		log.Debug(conn)
+		return
+	}
+	died := conn.checkIfAlive()
+	if died {
+		bot.Lock()
+		defer bot.Unlock()
+		if len(conn.joins) != 0 {
+			deleteConn(conn, bot.readconn)
+			bot.rejoinChannels(conn.joins)
+		} else if conn == bot.whisperconn {
+			bot.CreateConnection(connWhisperconn)
+		} else {
+			deleteConn(conn, bot.connlist)
+		}
+	}
+}
+
+// shuffle simple array shuffle functino
+func shuffleConnections(a []*Connection) {
+	for i := range a {
+		j := rand.Intn(i + 1)
+		a[i], a[j] = a[j], a[i]
+	}
+}
+
+// Message to send a message
+func (bot *Bot) Message(message string) {
+	shuffleConnections(bot.connlist)
+	for i := 0; i < len(bot.connlist); i++ {
+		if bot.connlist[i].messages < 15 {
+			err := bot.connlist[i].Message(message)
+			if err != nil {
+				log.Error(err)
+				if err.Error() == "connection is anonymous" {
+					return
+				}
+				time.Sleep(time.Second)
+				bot.Message(message)
+			}
+			return
+		}
+	}
+	// open new connection when others too full
+	log.Debugf("opened new connection, total: %d", len(bot.connlist))
+	bot.CreateConnection(connSendconn)
+	bot.Message(message)
+}
+
+// Close clean up bot things
+func (bot *Bot) Close() {
+	// Close the in connection
+	bot.open = false
+	if bot.whisperconn != nil {
+		bot.whisperconn.conn.Close()
+	}
+
+	// Close all listens connections
+	for _, conn := range bot.connlist {
+		conn.conn.Close()
 	}
 }

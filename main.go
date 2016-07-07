@@ -3,49 +3,33 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/op/go-logging"
 )
 
 var (
 	cfg config
-	// Log logger from go-logging
-	Log logging.Logger
-
-	bots = make(map[string]*bot)
-
-	// sync all bots joins since its ip based and not account based
-	joinTicker = time.NewTicker(300 * time.Millisecond)
+	// log logger from go-logging
+	log logging.Logger
 )
 
 type config struct {
-	BrokerPort string `json:"broker_port"`
+	BrokerPort int    `json:"broker_port"`
 	BrokerPass string `json:"broker_pass"`
 }
 
 func main() {
 
-	Log = initLogger()
+	log = initLogger()
 	cfg, err := readConfig("config.json")
 	if err != nil {
-		Log.Fatal(err)
+		log.Fatal(err)
 	}
 
-	Log.Info("starting up on port", cfg.BrokerPort)
-	server := new(Server)
-	port, err := strconv.Atoi(cfg.BrokerPort)
-	if err != nil {
-		panic("can't parse broker port")
-	}
-	go func() {
-		Log.Error(http.ListenAndServe("localhost:9001", nil))
-	}()
-	server.startServer(port)
+	exitCode := TCPServer(cfg.BrokerPort, cfg.BrokerPass)
+	log.Error("Exit code: ", exitCode)
 }
 
 func initLogger() logging.Logger {
