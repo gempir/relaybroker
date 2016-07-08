@@ -63,11 +63,12 @@ func (conn *connection) restore() {
 	   i was sometimes getting slice bounds out of range errors when restoring
 	   a lot of connections at a time due to network outages, i hope this fixes it
 	*/
-	conn.client.bot.Lock()
-	defer conn.client.bot.Unlock()
+
 	if conn.conntype == connReadConn {
+
 		var i int
 		var channels []string
+		conn.client.bot.Lock()
 		for index, co := range conn.client.bot.readconns {
 			if conn == co {
 				i = index
@@ -75,12 +76,25 @@ func (conn *connection) restore() {
 				break
 			}
 		}
+		Log.Error("readconn died, lost joins:", channels)
 		conn.client.bot.readconns = append(conn.client.bot.readconns[:i], conn.client.bot.readconns[i+1:]...)
+		for _, channel := range channels {
+			conns := conn.client.bot.channels[channel]
+			for i, co := range conns {
+				if conn == co {
+					conn.client.bot.channels[channel] = append(conns[:i], conns[i+1:]...)
+				}
+			}
+		}
+
+		conn.client.bot.Unlock()
 		for _, ch := range channels {
 			conn.client.bot.join <- ch
 		}
 	} else if conn.conntype == connSendConn {
+		Log.Error("sendconn died")
 		var i int
+		conn.client.bot.Lock()
 		for index, co := range conn.client.bot.sendconns {
 			if conn == co {
 				i = index
@@ -88,6 +102,9 @@ func (conn *connection) restore() {
 			}
 		}
 		conn.client.bot.sendconns = append(conn.client.bot.sendconns[:i], conn.client.bot.sendconns[i+1:]...)
+		conn.client.bot.Unlock()
+	} else {
+		Log.Error("conn died, ", conn.conntype)
 	}
 }
 
@@ -95,6 +112,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	c, err := tls.Dial("tcp", *addr, nil)
 	if err != nil {
 		Log.Error("unable to connect to irc server", err)
+		time.Sleep(2 * time.Second)
 		conn.restore()
 	}
 
@@ -116,7 +134,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			Log.Debug("read:", err)
+			Log.Error("read:", err)
 			conn.restore()
 			return
 		}

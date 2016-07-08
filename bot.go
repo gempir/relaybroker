@@ -63,7 +63,7 @@ func (bot *bot) close() {
 	for k := range bot.channels {
 		delete(bot.channels, k)
 	}
-	Log.Debug("CLOSED BOT", bot.nick)
+	Log.Info("CLOSED BOT", bot.nick)
 	bot.Unlock()
 }
 
@@ -75,7 +75,7 @@ func (bot *bot) checkConnections() {
 			go func() {
 				time.Sleep(10 * time.Second)
 				if !conn.active {
-					Log.Debug("send connection died, reconnecting...")
+					Log.Info("send connection died, reconnecting...")
 					conn.restore()
 					conn.close()
 				}
@@ -87,7 +87,7 @@ func (bot *bot) checkConnections() {
 				conn.send("PING")
 				time.Sleep(10 * time.Second)
 				if !conn.active {
-					Log.Debug("send connection died, closing...")
+					Log.Info("send connection died, closing...")
 					conn.restore()
 					conn.close()
 				}
@@ -113,7 +113,7 @@ func (bot *bot) partChannel(channel string) {
 				}
 			}
 		}
-		Log.Debugf("left channel on %d connections\n", len(conns))
+		Log.Infof("left channel on %d connections\n", len(conns))
 		delete(bot.channels, channel)
 		return
 	}
@@ -129,9 +129,9 @@ func (bot *bot) joinChannels() {
 
 func (bot *bot) joinChannel(channel string) {
 	channel = strings.ToLower(channel)
-	if _, ok := bot.channels[channel]; ok {
+	if conns, ok := bot.channels[channel]; ok && len(conns) > 0 {
 		// TODO: check msg ids and join channels more than one time
-		Log.Debug("already joined channel", channel)
+		Log.Info("already joined channel", channel)
 		return
 	}
 	var conn *connection
@@ -153,9 +153,9 @@ func (bot *bot) joinChannel(channel string) {
 	if _, ok := bot.channels[channel]; !ok {
 		bot.channels[channel] = make([]*connection, 0)
 	}
-
+	conn.joins = append(conn.joins, channel)
 	bot.channels[channel] = append(bot.channels[channel], conn)
-	Log.Debug("joined channel", channel)
+	Log.Info("joined channel", channel)
 
 }
 
@@ -197,7 +197,7 @@ func (bot *bot) say(msg string) {
 	}
 	if conn == nil || min > 10 {
 		bot.newConn(connSendConn)
-		Log.Debugf("created new conn, total: %d\n", len(bot.sendconns))
+		Log.Infof("created new conn, total: %d\n", len(bot.sendconns))
 		bot.say(msg)
 		return
 	}

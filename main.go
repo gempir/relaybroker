@@ -64,7 +64,6 @@ func initLogger() logging.Logger {
 }
 
 func readConfig(path string) (config, error) {
-	var cfg config
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -73,7 +72,6 @@ func readConfig(path string) (config, error) {
 }
 
 func unmarshalConfig(file []byte) (config, error) {
-	var cfg config
 	err := json.Unmarshal(file, &cfg)
 	if err != nil {
 		return cfg, err
