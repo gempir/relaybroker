@@ -55,6 +55,9 @@ func (conn *connection) close() {
 	if conn.conn != nil {
 		conn.conn.Close()
 	}
+	for _, channel := range conn.joins {
+		conn.part(channel)
+	}
 	conn.alive = false
 }
 
@@ -114,13 +117,13 @@ func (conn *connection) restore() {
 
 func (conn *connection) connect(client *Client, pass string, nick string) {
 	c, err := tls.Dial("tcp", *addr, nil)
+	conn.conn = c
+	conn.bot = client.bot
 	if err != nil {
 		Log.Error("unable to connect to irc server", err)
 		time.Sleep(2 * time.Second)
 		conn.restore()
 	}
-
-	conn.conn = c
 
 	conn.login(pass, nick)
 	conn.send("CAP REQ :twitch.tv/tags")
@@ -130,7 +133,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 		if r := recover(); r != nil {
 			Log.Error(r)
 		}
-		conn.close()
+		conn.restore()
 	}()
 	reader := bufio.NewReader(conn.conn)
 	tp := textproto.NewReader(reader)
