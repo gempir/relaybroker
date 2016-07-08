@@ -6,7 +6,7 @@ import (
 )
 
 func TestCanInitLogger(t *testing.T) {
-	log := initLogger()
+	log := initLogger(0)
 	if reflect.TypeOf(log).String() != "logging.Logger" {
 		t.Fatal("logger invalid type")
 	}

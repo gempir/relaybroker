@@ -204,7 +204,7 @@ func (bot *bot) say(msg string) {
 	}
 	conn.send("PRIVMSG " + msg)
 	Log.Debugf("%p   %d\n", conn, conn.msgCount)
-	Log.Debug("sent:", msg)
+	Log.Info("sent:", msg)
 }
 
 func (bot *bot) handleMessage(spl []string) {

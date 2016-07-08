@@ -30,8 +30,22 @@ type config struct {
 }
 
 func main() {
-
-	Log = initLogger()
+	loggerArgs := os.Args
+	var level = logging.INFO
+	if len(loggerArgs) > 1 {
+		switch loggerArgs[1] {
+		case "debug":
+			level = logging.DEBUG
+		case "error":
+			level = logging.ERROR
+		default:
+			level = logging.INFO
+		}
+	} else {
+		level = logging.INFO
+	}
+	Log = initLogger(level)
+	Log.Infof("running in %s mode, switch by typing ./relaybroker debug/error", level.String())
 	var err error
 	cfg, err = readConfig("config.json")
 	if err != nil {
@@ -46,20 +60,22 @@ func main() {
 	server := new(Server)
 
 	server.startServer()
+
 }
 
-func initLogger() logging.Logger {
+func initLogger(level logging.Level) logging.Logger {
 	var logger *logging.Logger
 	logger = logging.MustGetLogger("relaybroker")
-	backend1 := logging.NewLogBackend(os.Stdout, "", 0)
-	backend2 := logging.NewLogBackend(os.Stdout, "", 0)
+	logging.SetLevel(level, "relaybroker")
+	backend := logging.NewLogBackend(os.Stdout, "", 0)
+
 	format := logging.MustStringFormatter(
 		`%{color}%{time:2006-01-02 15:04:05.000} %{shortfile:-15s} %{level:.4s}%{color:reset} %{message}`,
 	)
-	backend2Formatter := logging.NewBackendFormatter(backend2, format)
-	backend1Leveled := logging.AddModuleLevel(backend1)
-	backend1Leveled.SetLevel(logging.ERROR, "")
-	logging.SetBackend(backend1Leveled, backend2Formatter)
+	logging.SetFormatter(format)
+	backendLeveled := logging.AddModuleLevel(backend)
+	backendLeveled.SetLevel(level, "relaybroker")
+	logging.SetBackend(backendLeveled)
 	return *logger
 }
 
