@@ -142,6 +142,10 @@ func (c *Client) handleMessage(line string) {
 			c.ID = ID
 		}
 	case "JOIN":
+		if c.bot == nil {
+			c.bot = newBot(c)
+			c.bot.Init()
+		}
 		c.join <- msg
 	case "USER":
 	default:
