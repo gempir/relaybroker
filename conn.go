@@ -58,6 +58,15 @@ func (conn *connection) close() {
 	conn.alive = false
 }
 
+func (conn *connection) part(channel string) {
+	channel = strings.ToLower(channel)
+	for i, ch := range conn.joins {
+		if ch == channel {
+			conn.joins = append(conn.joins[:i], conn.joins[i+1:]...)
+		}
+	}
+}
+
 func (conn *connection) restore() {
 	if conn.conntype == connReadConn {
 		var i int
@@ -77,6 +86,7 @@ func (conn *connection) restore() {
 			for i, co := range conns {
 				if conn == co {
 					conn.bot.channels[channel] = append(conns[:i], conns[i+1:]...)
+					conn.part(channel)
 				}
 			}
 		}

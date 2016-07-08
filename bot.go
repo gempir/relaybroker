@@ -107,11 +107,7 @@ func (bot *bot) partChannel(channel string) {
 	if conns, ok := bot.channels[channel]; ok {
 		for _, conn := range conns {
 			conn.send("PART " + channel)
-			for i, ch := range conn.joins {
-				if ch == channel {
-					conn.joins = append(conn.joins[:i], conn.joins[i+1:]...)
-				}
-			}
+			conn.part(channel)
 		}
 		Log.Infof("left channel on %d connections\n", len(conns))
 		delete(bot.channels, channel)
