@@ -110,9 +110,10 @@ func (conn *connection) restore() {
 		}
 		conn.bot.sendconns = append(conn.bot.sendconns[:i], conn.bot.sendconns[i+1:]...)
 		conn.bot.Unlock()
-	} else {
+	} else if conn.conntype != connDelete {
 		Log.Error("conn died, ", conn.conntype)
 	}
+	conn.conntype = connDelete
 }
 
 func (conn *connection) connect(client *Client, pass string, nick string) {
