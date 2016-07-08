@@ -46,16 +46,10 @@ func countConns() int {
 func getUptime() string {
 	ago := time.Since(stats.startTime)
 	totalSeconds := int(ago.Seconds())
-	s := totalSeconds % 60
-	mins := (totalSeconds - s) / 60
-	seconds := totalSeconds - mins*60
-	m := mins % 60
-	mins = m
-	hours := (mins - m) / 60
-
-	h := hours % 24
-	days := (hours - h) / 24
-	hours = hours - days*24
+	days := (totalSeconds / (60 * 60 * 24)) % 24
+	hours := (totalSeconds / (60 * 60)) % 24
+	mins := (totalSeconds / 60) % 60
+	seconds := totalSeconds % 60
 
 	if mins+hours+days < 1 {
 		// up for less than 1 minute
