@@ -29,7 +29,7 @@ type connection struct {
 	msgCount int
 	alive    bool
 	conntype connType
-	client   *Client
+	bot      *bot
 }
 
 func newConnection(t connType) *connection {
@@ -59,17 +59,11 @@ func (conn *connection) close() {
 }
 
 func (conn *connection) restore() {
-	/*
-	   i was sometimes getting slice bounds out of range errors when restoring
-	   a lot of connections at a time due to network outages, i hope this fixes it
-	*/
-
 	if conn.conntype == connReadConn {
-
 		var i int
 		var channels []string
-		conn.client.bot.Lock()
-		for index, co := range conn.client.bot.readconns {
+		conn.bot.Lock()
+		for index, co := range conn.bot.readconns {
 			if conn == co {
 				i = index
 				channels = co.joins
@@ -77,32 +71,32 @@ func (conn *connection) restore() {
 			}
 		}
 		Log.Error("readconn died, lost joins:", channels)
-		conn.client.bot.readconns = append(conn.client.bot.readconns[:i], conn.client.bot.readconns[i+1:]...)
+		conn.bot.readconns = append(conn.bot.readconns[:i], conn.bot.readconns[i+1:]...)
 		for _, channel := range channels {
-			conns := conn.client.bot.channels[channel]
+			conns := conn.bot.channels[channel]
 			for i, co := range conns {
 				if conn == co {
-					conn.client.bot.channels[channel] = append(conns[:i], conns[i+1:]...)
+					conn.bot.channels[channel] = append(conns[:i], conns[i+1:]...)
 				}
 			}
 		}
 
-		conn.client.bot.Unlock()
+		conn.bot.Unlock()
 		for _, ch := range channels {
-			conn.client.bot.join <- ch
+			conn.bot.join <- ch
 		}
 	} else if conn.conntype == connSendConn {
 		Log.Error("sendconn died")
 		var i int
-		conn.client.bot.Lock()
-		for index, co := range conn.client.bot.sendconns {
+		conn.bot.Lock()
+		for index, co := range conn.bot.sendconns {
 			if conn == co {
 				i = index
 				break
 			}
 		}
-		conn.client.bot.sendconns = append(conn.client.bot.sendconns[:i], conn.client.bot.sendconns[i+1:]...)
-		conn.client.bot.Unlock()
+		conn.bot.sendconns = append(conn.bot.sendconns[:i], conn.bot.sendconns[i+1:]...)
+		conn.bot.Unlock()
 	} else {
 		Log.Error("conn died, ", conn.conntype)
 	}
@@ -117,7 +111,6 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	}
 
 	conn.conn = c
-	conn.client = client
 
 	conn.login(pass, nick)
 	conn.send("CAP REQ :twitch.tv/tags")
