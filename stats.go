@@ -33,8 +33,13 @@ func apiData(w http.ResponseWriter, r *http.Request) {
 
 	mins = m
 	uptime := fmt.Sprintf("%dd %dh %dm", days, hours, mins)
-	s := fmt.Sprintf("relaybroker stats: online for %s,  %d total connections, %d messages sent, %d messages received MrDestructoid ",
+	botCount := fmt.Sprintf("%d bot", len(bots))
+	if len(bots) > 1 {
+		botCount += "s"
+	}
+	s := fmt.Sprintf("relaybroker stats: online for %s, %s connected, %d total connections, %d messages sent, %d messages received MrDestructoid ",
 		uptime,
+		botCount,
 		countConns(),
 		stats.totalMsgsSent,
 		stats.totalMsgsReceived)
