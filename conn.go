@@ -92,12 +92,10 @@ func (conn *connection) restore() {
 					conn.part(channel)
 				}
 			}
+			conn.bot.join <- channel
 		}
-
 		conn.bot.Unlock()
-		for _, ch := range channels {
-			conn.bot.join <- ch
-		}
+
 	} else if conn.conntype == connSendConn {
 		Log.Error("sendconn died")
 		var i int
