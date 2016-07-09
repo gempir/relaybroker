@@ -71,11 +71,12 @@ func (bot *bot) checkConnections() {
 	for _ = range bot.ticker.C {
 		for _, co := range bot.readconns {
 			conn := co
+			conn.active = false
 			conn.send("PING")
 			go func() {
 				time.Sleep(10 * time.Second)
 				if !conn.active {
-					Log.Info("send connection died, reconnecting...")
+					Log.Info("read connection died, reconnecting...")
 					conn.restore()
 					conn.close()
 				}
@@ -83,15 +84,22 @@ func (bot *bot) checkConnections() {
 		}
 		for _, co := range bot.sendconns {
 			conn := co
-			go func() {
+			conn.active = false
+			if time.Since(conn.lastUse) < time.Minute*10 {
+				// close unused connections
 				conn.send("PING")
-				time.Sleep(10 * time.Second)
-				if !conn.active {
-					Log.Info("send connection died, closing...")
-					conn.restore()
-					conn.close()
-				}
-			}()
+				go func() {
+					time.Sleep(10 * time.Second)
+					if !conn.active {
+						Log.Info("send connection died, closing...")
+						conn.restore()
+						conn.close()
+					}
+				}()
+			} else {
+				Log.Info("closing unused connection")
+				conn.close()
+			}
 		}
 
 		bot.whisperconn.send("PING")
@@ -202,6 +210,7 @@ func (bot *bot) say(msg string) {
 	for !conn.active {
 		time.Sleep(100 * time.Millisecond)
 	}
+	conn.lastUse = time.Now()
 	conn.send("PRIVMSG " + msg)
 	Log.Debugf("%p   %d\n", conn, conn.msgCount)
 	Log.Info("sent:", msg)

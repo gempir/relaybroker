@@ -27,18 +27,18 @@ type connection struct {
 	anon     bool
 	joins    []string
 	msgCount int
+	lastUse  time.Time
 	alive    bool
 	conntype connType
 	bot      *bot
 }
 
 func newConnection(t connType) *connection {
-	c := &connection{
+	return &connection{
 		joins:    make([]string, 0),
 		conntype: t,
+		lastUse:  time.Now(),
 	}
-
-	return c
 }
 
 func (conn *connection) login(pass string, nick string) {
