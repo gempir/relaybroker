@@ -1,6 +1,0 @@
-{
-    "broker_port": "7353",
-    "broker_pass": "test",
-    "api_host": "localhost:9002",
-    "api_path": "stats"
-}
