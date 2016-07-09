@@ -43,11 +43,13 @@ func newConnection(t connType) *connection {
 
 func (conn *connection) login(pass string, nick string) {
 	conn.anon = pass == ""
+	Log.Debug(pass)
 	if !conn.anon {
 		conn.send("PASS " + pass)
 		conn.send("NICK " + nick)
 		return
 	}
+	Log.Debug("justinfan123 XDDDDDDDDDDD")
 	conn.send("NICK justinfan123")
 }
 

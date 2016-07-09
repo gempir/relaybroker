@@ -93,26 +93,13 @@ func (c *Client) handleMessage(line string) {
 	}()
 	spl := strings.SplitN(line, " ", 2)
 	msg := spl[1]
-	// irc command
-	switch spl[0] {
-	case "LOGIN": // log into relaybroker with bot id to enable reconnecting, example: LOGIN pajbot2
-		if bot, ok := bots[msg]; ok {
-			c.ID = msg
-			c.bot = bot
-			c.bot.client.toClient = c.toClient
-			close(c.join)
-			c.join = make(chan string, 50000)
-			go c.joinChannels()
-			c.bot.clientConnected = true
-			Log.Debug("old bot reconnected", msg)
+	if c.bot == nil {
+		if c.registerBot(spl[0], msg) {
 			return
 		}
-		c.bot = newBot(c)
-		c.ID = msg
-		c.bot.ID = msg
-		c.bot.clientConnected = true
-		c.bot.Init()
-		bots[msg] = c.bot
+	}
+	// irc command
+	switch spl[0] {
 	case "PASS":
 		pass := msg
 		if strings.Contains(msg, ";") {
@@ -127,29 +114,52 @@ func (c *Client) handleMessage(line string) {
 				}
 			}
 		}
-		if c.bot == nil {
-			c.bot = newBot(c)
-			c.bot.Init()
-		}
 		c.bot.pass = pass
 	case "NICK":
 		c.bot.nick = strings.ToLower(msg) // make sure the nick is lowercase
-		// generate random ID
-		if c.bot.ID == "" {
-			r := rand.Int31n(123456)
-			ID := fmt.Sprintf("%d%s%d", 1, c.bot.nick, r)
-			bots[ID] = c.bot
-			c.ID = ID
-		}
+		// start bot when we got all login info
+		c.bot.Init()
 	case "JOIN":
-		if c.bot == nil {
-			c.bot = newBot(c)
-			c.bot.Init()
-		}
 		c.join <- msg
 	case "USER":
 	default:
 		go c.bot.handleMessage(spl)
+	}
+}
 
+/*
+if first line from client == LOGIN, reconnect to old bot
+if its something else, create new bot
+return true on LOGIN, false on any other command so it can be processed further
+*/
+func (c *Client) registerBot(cmd string, msg string) bool {
+	if cmd == "LOGIN" {
+		if bot, ok := bots[msg]; ok {
+			c.ID = msg
+			c.bot = bot
+			c.bot.client.toClient = c.toClient
+			close(c.join)
+			c.join = make(chan string, 50000)
+			go c.joinChannels()
+			c.bot.clientConnected = true
+			Log.Debug("old bot reconnected", msg)
+			return true
+		}
+		c.bot = newBot(c)
+		c.ID = msg
+		c.bot.ID = msg
+		c.bot.clientConnected = true
+		bots[msg] = c.bot
+		return true
+	} else {
+		c.bot = newBot(c)
+		// generate random ID
+		if c.bot.ID == "" {
+			r := rand.Int31n(123456)
+			ID := fmt.Sprintf("%s%d", c.bot.nick, r)
+			bots[ID] = c.bot
+			c.ID = ID
+		}
+		return false
 	}
 }
