@@ -6,7 +6,7 @@ import (
 )
 
 func TestCanInitLogger(t *testing.T) {
-	log := initLogger()
+	log := initLogger(0)
 	if reflect.TypeOf(log).String() != "logging.Logger" {
 		t.Fatal("logger invalid type")
 	}
@@ -17,7 +17,7 @@ func TestCanReadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal("error reading config", err)
 	}
-	if cfg.BrokerPass != "test" || cfg.BrokerPort != 3333 {
+	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
 		t.Fatal("invalid config")
 	}
 }
@@ -30,12 +30,12 @@ func TestCanNotReadConfig(t *testing.T) {
 }
 
 func TestCanUnmarshal(t *testing.T) {
-	file := []byte(`{"broker_port": 3333, "broker_pass": "test"}`)
+	file := []byte(`{"broker_port": "3333","broker_pass": "test"}`)
 	cfg, err := unmarshalConfig(file)
 	if err != nil {
-		t.Fatal("failed to unmarshal config", err)
+		t.Fatal("failed to unmarshal config")
 	}
-	if cfg.BrokerPass != "test" || cfg.BrokerPort != 3333 {
+	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
 		t.Fatal("invalid config")
 	}
 }
