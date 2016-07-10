@@ -177,6 +177,9 @@ func isWhisper(line string) bool {
 }
 
 func (conn *connection) send(msg string) error {
+	if conn.conn == nil {
+		return fmt.Errorf("conn is nil")
+	}
 	_, err := fmt.Fprint(conn.conn, msg+"\r\n")
 	if err != nil {
 		Log.Error(msg)

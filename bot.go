@@ -118,7 +118,11 @@ func (bot *bot) checkConnections() {
 			}
 		}
 
-		bot.whisperconn.send("PING")
+		err := bot.whisperconn.send("PING")
+		if err != nil {
+			Log.Error(err)
+			bot.whisperconn.restore()
+		}
 		time.Sleep(10 * time.Second)
 		if !bot.whisperconn.active {
 			bot.newConn(connWhisperConn)
