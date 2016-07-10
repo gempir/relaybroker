@@ -122,6 +122,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 		Log.Error("unable to connect to irc server", err)
 		time.Sleep(2 * time.Second)
 		conn.restore()
+		return
 	}
 
 	conn.login(pass, nick)
@@ -158,11 +159,16 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	}
 }
 
-func (conn *connection) send(msg string) {
-	conn.Lock()
-	fmt.Fprint(conn.conn, msg+"\r\n")
+func (conn *connection) send(msg string) error {
+	_, err := fmt.Fprint(conn.conn, msg+"\r\n")
+	if err != nil {
+		Log.Error(msg)
+		Log.Error(err)
+		Log.Error(conn)
+		return err
+	}
 	stats.totalMsgsSent++
-	conn.Unlock()
+	return nil
 }
 
 func (conn *connection) reduceMsgCount() {

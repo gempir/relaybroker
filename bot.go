@@ -72,13 +72,19 @@ func (bot *bot) checkConnections() {
 		for _, co := range bot.readconns {
 			conn := co
 			conn.active = false
-			conn.send("PING")
+			err := conn.send("PING")
+			if err != nil {
+				Log.Error(err)
+				conn.restore()
+				conn.close()
+			}
 			go func() {
 				time.Sleep(10 * time.Second)
 				if !conn.active {
 					Log.Info("read connection died, reconnecting...")
 					conn.restore()
 					conn.close()
+
 				}
 			}()
 		}
@@ -87,18 +93,29 @@ func (bot *bot) checkConnections() {
 			conn.active = false
 			if time.Since(conn.lastUse) < time.Minute*10 {
 				// close unused connections
-				conn.send("PING")
-				go func() {
-					time.Sleep(10 * time.Second)
-					if !conn.active {
-						Log.Info("send connection died, closing...")
-						conn.restore()
-						conn.close()
-					}
-				}()
+				err := conn.send("PING")
+				if err != nil {
+					Log.Error(err)
+					conn.restore()
+					conn.close()
+				} else {
+					go func() {
+						time.Sleep(10 * time.Second)
+						if !conn.active {
+							Log.Info("send connection died, closing...")
+							conn.restore()
+							conn.close()
+						}
+					}()
+				}
 			} else {
-				Log.Info("closing unused connection")
-				conn.close()
+				if len(bot.sendconns) > 2 {
+					Log.Info("closing unused connection")
+					conn.restore()
+					conn.close()
+				} else {
+					conn.lastUse = time.Now()
+				}
 			}
 		}
 
@@ -114,7 +131,14 @@ func (bot *bot) partChannel(channel string) {
 	channel = strings.ToLower(channel)
 	if conns, ok := bot.channels[channel]; ok {
 		for _, conn := range conns {
-			conn.send("PART " + channel)
+			err := conn.send("PART " + channel)
+			if err != nil {
+				Log.Error(err)
+				conn.restore()
+				conn.close()
+				bot.partChannel(channel)
+				return
+			}
 			conn.part(channel)
 		}
 		Log.Infof("left channel on %d connections\n", len(conns))
@@ -153,7 +177,14 @@ func (bot *bot) joinChannel(channel string) {
 	for !conn.active {
 		time.Sleep(100 * time.Millisecond)
 	}
-	conn.send("JOIN " + channel)
+	err := conn.send("JOIN " + channel)
+	if err != nil {
+		Log.Error(err)
+		conn.restore()
+		conn.close()
+		bot.join <- channel
+		return
+	}
 	if _, ok := bot.channels[channel]; !ok {
 		bot.channels[channel] = make([]*connection, 0)
 	}
@@ -211,7 +242,14 @@ func (bot *bot) say(msg string) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	conn.lastUse = time.Now()
-	conn.send("PRIVMSG " + msg)
+	err := conn.send("PRIVMSG " + msg)
+	if err != nil {
+		Log.Error(err)
+		conn.restore()
+		conn.close()
+		bot.say(msg)
+		return
+	}
 	Log.Debugf("%p   %d\n", conn, conn.msgCount)
 	Log.Info("sent:", msg)
 }
