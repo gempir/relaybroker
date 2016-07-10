@@ -84,7 +84,6 @@ func (bot *bot) checkConnections() {
 					Log.Info("read connection died, reconnecting...")
 					conn.restore()
 					conn.close()
-
 				}
 			}()
 		}

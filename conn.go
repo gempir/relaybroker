@@ -108,8 +108,10 @@ func (conn *connection) restore() {
 		}
 		conn.bot.sendconns = append(conn.bot.sendconns[:i], conn.bot.sendconns[i+1:]...)
 		conn.bot.Unlock()
-	} else if conn.conntype != connDelete {
-		Log.Error("conn died, ", conn.conntype)
+	} else if conn.conntype == connWhisperConn {
+		Log.Error("whisperconn died, reconnecting")
+		conn.close()
+		conn.bot.whisperconn = newConnection(connWhisperConn)
 	}
 	conn.conntype = connDelete
 }
@@ -152,11 +154,26 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 		} else if strings.HasPrefix(line, "PONG") {
 			Log.Debug("PONG")
 		} else {
-			client.toClient <- line
+			if isWhisper(line) && conn.conntype != connWhisperConn {
+				// throw away message
+			} else {
+				client.toClient <- line
+			}
 		}
 		conn.active = true
 		stats.totalMsgsReceived++
 	}
+}
+
+func isWhisper(line string) bool {
+	if !strings.Contains(line, ".tmi.twitch.tv WHISPER ") {
+		return false
+	}
+	spl := strings.SplitN(line, " :", 3)
+	if strings.Contains(spl[1], ".tmi.twitch.tv WHISPER ") {
+		return true
+	}
+	return false
 }
 
 func (conn *connection) send(msg string) error {
