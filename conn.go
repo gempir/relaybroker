@@ -71,6 +71,11 @@ func (conn *connection) part(channel string) {
 }
 
 func (conn *connection) restore() {
+	defer func() {
+		if r := recover(); r != nil {
+			Log.Error(r)
+		}
+	}()
 	if conn.conntype == connReadConn {
 		var i int
 		var channels []string
