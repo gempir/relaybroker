@@ -79,7 +79,6 @@ func (conn *connection) restore() {
 	if conn.conntype == connReadConn {
 		var i int
 		var channels []string
-		conn.bot.Lock()
 		for index, co := range conn.bot.readconns {
 			if conn == co {
 				i = index
@@ -88,49 +87,55 @@ func (conn *connection) restore() {
 			}
 		}
 		Log.Error("readconn died, lost joins:", channels)
+		conn.bot.Lock()
 		conn.bot.readconns = append(conn.bot.readconns[:i], conn.bot.readconns[i+1:]...)
+		conn.bot.Unlock()
 		for _, channel := range channels {
+			Log.Debug(conn.bot.channels)
 			conns := conn.bot.channels[channel]
 			for i, co := range conns {
 				if conn == co {
+					conn.bot.Lock()
 					conn.bot.channels[channel] = append(conns[:i], conns[i+1:]...)
+					conn.bot.Unlock()
 					conn.part(channel)
 				}
 			}
+			Log.Debug(conn.bot.channels)
 			conn.bot.join <- channel
+
 		}
-		conn.bot.Unlock()
 
 	} else if conn.conntype == connSendConn {
 		Log.Error("sendconn died")
 		var i int
-		conn.bot.Lock()
 		for index, co := range conn.bot.sendconns {
 			if conn == co {
 				i = index
 				break
 			}
 		}
+		conn.bot.Lock()
 		conn.bot.sendconns = append(conn.bot.sendconns[:i], conn.bot.sendconns[i+1:]...)
 		conn.bot.Unlock()
 	} else if conn.conntype == connWhisperConn {
 		Log.Error("whisperconn died, reconnecting")
 		conn.close()
-		conn.bot.whisperconn = newConnection(connWhisperConn)
+		conn.bot.newConn(connWhisperConn)
 	}
 	conn.conntype = connDelete
 }
 
 func (conn *connection) connect(client *Client, pass string, nick string) {
-	c, err := tls.Dial("tcp", *addr, nil)
-	conn.conn = c
 	conn.bot = client.bot
+	c, err := tls.Dial("tcp", *addr, nil)
 	if err != nil {
 		Log.Error("unable to connect to irc server", err)
 		time.Sleep(2 * time.Second)
 		conn.restore()
 		return
 	}
+	conn.conn = c
 
 	conn.login(pass, nick)
 	conn.send("CAP REQ :twitch.tv/tags")
@@ -183,6 +188,7 @@ func isWhisper(line string) bool {
 
 func (conn *connection) send(msg string) error {
 	if conn.conn == nil {
+		Log.Error("conn is nil", conn, conn.conn)
 		return fmt.Errorf("conn is nil")
 	}
 	_, err := fmt.Fprint(conn.conn, msg+"\r\n")
@@ -197,14 +203,10 @@ func (conn *connection) send(msg string) error {
 }
 
 func (conn *connection) reduceMsgCount() {
-	conn.Lock()
 	conn.msgCount--
-	conn.Unlock()
 }
 
 func (conn *connection) countMsg() {
-	conn.Lock()
 	conn.msgCount++
-	conn.Unlock()
 	time.AfterFunc(30*time.Second, conn.reduceMsgCount)
 }
