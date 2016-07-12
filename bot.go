@@ -89,9 +89,9 @@ func (bot *bot) checkConnections() {
 		}
 		for _, co := range bot.sendconns {
 			conn := co
-			conn.active = false
 			if time.Since(conn.lastUse) < time.Minute*10 {
 				// close unused connections
+				conn.active = false
 				err := conn.send("PING")
 				if err != nil {
 					Log.Error(err)
