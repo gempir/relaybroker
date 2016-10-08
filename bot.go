@@ -89,9 +89,9 @@ func (bot *bot) checkConnections() {
 		}
 		for _, co := range bot.sendconns {
 			conn := co
-			conn.active = false
 			if time.Since(conn.lastUse) < time.Minute*10 {
 				// close unused connections
+				conn.active = false
 				err := conn.send("PING")
 				if err != nil {
 					Log.Error(err)
@@ -117,15 +117,23 @@ func (bot *bot) checkConnections() {
 				}
 			}
 		}
-
-		err := bot.whisperconn.send("PING")
-		if err != nil {
-			Log.Error(err)
-			bot.whisperconn.restore()
-		}
-		time.Sleep(10 * time.Second)
-		if !bot.whisperconn.active {
-			bot.newConn(connWhisperConn)
+		go func() {
+			err := bot.whisperconn.send("PING")
+			if err != nil {
+				Log.Error(err)
+				bot.whisperconn.restore()
+			}
+			time.Sleep(10 * time.Second)
+			if !bot.whisperconn.active {
+				bot.newConn(connWhisperConn)
+			}
+		}()
+		Log.Debug(bot.channels)
+		for channel := range bot.channels {
+			Log.Debug(channel)
+			if conns, ok := bot.channels[channel]; ok && len(conns) < 1 {
+				bot.join <- channel
+			}
 		}
 	}
 }
@@ -153,13 +161,15 @@ func (bot *bot) partChannel(channel string) {
 
 func (bot *bot) joinChannels() {
 	for channel := range bot.join {
-		bot.joinChannel(channel)
+		Log.Debug(channel)
+		go bot.joinChannel(channel)
 		<-joinTicker.C
 	}
 }
 
 func (bot *bot) joinChannel(channel string) {
 	channel = strings.ToLower(channel)
+	Log.Debug(bot.channels)
 	if conns, ok := bot.channels[channel]; ok && len(conns) > 0 {
 		// TODO: check msg ids and join channels more than one time
 		Log.Info("already joined channel", channel)
@@ -215,6 +225,7 @@ func (bot *bot) newConn(t connType) {
 		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.whisperconn = conn
 	}
+	Log.Debug("NEW CONN", t)
 }
 
 func (bot *bot) readChat() {

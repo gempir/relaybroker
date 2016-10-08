@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"strings"
+	"time"
 )
 
 // Client for connection to relaybroker
@@ -151,15 +152,15 @@ func (c *Client) registerBot(cmd string, msg string) bool {
 		c.bot.clientConnected = true
 		bots[msg] = c.bot
 		return true
-	} else {
-		c.bot = newBot(c)
-		// generate random ID
-		if c.bot.ID == "" {
-			r := rand.Int31n(123456)
-			ID := fmt.Sprintf("%s%d", c.bot.nick, r)
-			bots[ID] = c.bot
-			c.ID = ID
-		}
-		return false
 	}
+	c.bot = newBot(c)
+	// generate random ID
+	if c.bot.ID == "" {
+		rand.Seed(int64(time.Now().Nanosecond()))
+		r := rand.Int31n(123456)
+		ID := fmt.Sprintf("%s%d", c.bot.nick, r)
+		bots[ID] = c.bot
+		c.ID = ID
+	}
+	return false
 }
