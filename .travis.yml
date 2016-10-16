@@ -2,8 +2,7 @@ language: go
 go: 
  - 1.5.3
  - 1.6.3
- - release
- - tip
+ - 1.7.1
 
 script:
  - go test -v

@@ -1,4 +1,4 @@
-# relaybroker
+# relaybroker [![Build Status](https://travis-ci.org/gempir/relaybroker.svg?branch=master)](https://travis-ci.org/gempir/relaybroker)
 
 #### What is this?
 relaybroker is a piece of software that is supposed to act as a proxy between your bot and twitch.tv irc servers. 
