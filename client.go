@@ -53,7 +53,7 @@ func (c *Client) read() {
 func closeChannel(c chan string) {
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error(r)
+			Log.Error("error closing channel ")
 		}
 	}()
 	close(c)
@@ -87,8 +87,7 @@ func (c *Client) handleMessage(line string) {
 	c.test = append(c.test, line)
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error(c.test)
-			Log.Error(r)
+			Log.Error("message handling error")
 			c.close()
 		}
 	}()

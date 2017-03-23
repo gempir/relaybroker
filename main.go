@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -51,12 +50,8 @@ func main() {
 	if err != nil {
 		Log.Fatal(err)
 	}
-	statsAPI()
-	go func() {
-		Log.Error(http.ListenAndServe(cfg.APIHost, nil))
-	}()
 
-	Log.Info("starting up on port", cfg.BrokerPort)
+	Log.Infof("starting up on port %s", cfg.BrokerPort)
 	server := new(Server)
 
 	server.startServer()
@@ -70,7 +65,7 @@ func initLogger(level logging.Level) logging.Logger {
 	backend := logging.NewLogBackend(os.Stdout, "", 0)
 
 	format := logging.MustStringFormatter(
-		`%{color}%{time:2006-01-02 15:04:05.000} %{shortfile:-15s} %{level:.4s}%{color:reset} %{message}`,
+		`%{color}%{time:2006-01-02 15:04:05.000} %{level:.4s} %{shortfile}%{color:reset} %{message}`,
 	)
 	logging.SetFormatter(format)
 	backendLeveled := logging.AddModuleLevel(backend)

@@ -22,7 +22,7 @@ func (s *Server) startServer() {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			Log.Error(err)
+			Log.Error(err.Error())
 			os.Exit(1)
 		}
 		go s.handleClient(newClient(conn))

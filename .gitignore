@@ -4,3 +4,8 @@ relaybroker
 *.exe~
 config.json
 config.go
+vendor/
+glide.lock
+.idea/
+coverage-all.out
+coverage.out

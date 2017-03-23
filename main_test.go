@@ -1,15 +1,14 @@
 package main
 
 import (
-	"reflect"
 	"testing"
+	"github.com/stretchr/testify/assert"
+	"github.com/op/go-logging"
 )
 
 func TestCanInitLogger(t *testing.T) {
 	log := initLogger(0)
-	if reflect.TypeOf(log).String() != "logging.Logger" {
-		t.Fatal("logger invalid type")
-	}
+	assert.IsType(t, logging.Logger{}, log)
 }
 
 func TestCanReadConfig(t *testing.T) {
@@ -17,9 +16,8 @@ func TestCanReadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal("error reading config", err)
 	}
-	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
-		t.Fatal("invalid config")
-	}
+	assert.Equal(t, "test", cfg.BrokerPass)
+	assert.Equal(t, "3333", cfg.BrokerPort)
 }
 
 func TestCanNotReadConfig(t *testing.T) {
@@ -35,9 +33,8 @@ func TestCanUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to unmarshal config")
 	}
-	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
-		t.Fatal("invalid config")
-	}
+	assert.Equal(t, "test", cfg.BrokerPass)
+	assert.Equal(t, "3333", cfg.BrokerPort)
 }
 
 func TestCanNotUnmarshal(t *testing.T) {
