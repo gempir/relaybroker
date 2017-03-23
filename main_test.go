@@ -1,9 +1,9 @@
 package main
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"github.com/op/go-logging"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestCanInitLogger(t *testing.T) {
@@ -12,7 +12,7 @@ func TestCanInitLogger(t *testing.T) {
 }
 
 func TestCanReadConfig(t *testing.T) {
-	cfg, err := readConfig("test_data/config.json")
+	cfg, err := readConfig("config.example.json")
 	if err != nil {
 		t.Fatal("error reading config", err)
 	}
@@ -21,7 +21,7 @@ func TestCanReadConfig(t *testing.T) {
 }
 
 func TestCanNotReadConfig(t *testing.T) {
-	_, err := readConfig("test_data/invalid_file.json")
+	_, err := readConfig("invalid_file.json")
 	if err == nil {
 		t.Fatal("Invalid file but no error thrown", err)
 	}

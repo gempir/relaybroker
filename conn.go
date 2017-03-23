@@ -3,13 +3,13 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/textproto"
 	"strings"
 	"sync"
 	"time"
-	"errors"
 )
 
 type connType uint32

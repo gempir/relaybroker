@@ -268,13 +268,13 @@ func (bot *bot) say(msg string) {
 func (bot *bot) handleMessage(spl []string) {
 	msg := spl[1]
 	switch spl[0] {
-		case "JOIN":
-			bot.join <- strings.ToLower(msg)
-		case "PART":
-			bot.partChannel(strings.ToLower(msg))
-		case "PRIVMSG":
-			bot.say(msg)
-		default:
-			Log.Error("unhandled message", spl[0], msg)
+	case "JOIN":
+		bot.join <- strings.ToLower(msg)
+	case "PART":
+		bot.partChannel(strings.ToLower(msg))
+	case "PRIVMSG":
+		bot.say(msg)
+	default:
+		Log.Error("unhandled message", spl[0], msg)
 	}
 }
