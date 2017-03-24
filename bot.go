@@ -74,7 +74,7 @@ func (bot *bot) checkConnections() {
 			conn.active = false
 			err := conn.send("PING")
 			if err != nil {
-				Log.Error(err)
+				Log.Error(err.Error())
 				conn.restore()
 				conn.close()
 			}
@@ -94,7 +94,7 @@ func (bot *bot) checkConnections() {
 				conn.active = false
 				err := conn.send("PING")
 				if err != nil {
-					Log.Error(err)
+					Log.Error(err.Error())
 					conn.restore()
 					conn.close()
 				} else {
@@ -120,7 +120,7 @@ func (bot *bot) checkConnections() {
 		go func() {
 			err := bot.whisperconn.send("PING")
 			if err != nil {
-				Log.Error(err)
+				Log.Error(err.Error())
 				bot.whisperconn.restore()
 			}
 			time.Sleep(10 * time.Second)
@@ -128,9 +128,7 @@ func (bot *bot) checkConnections() {
 				bot.newConn(connWhisperConn)
 			}
 		}()
-		Log.Debug(bot.channels)
 		for channel := range bot.channels {
-			Log.Debug(channel)
 			if conns, ok := bot.channels[channel]; ok && len(conns) < 1 {
 				bot.join <- channel
 			}
@@ -144,7 +142,7 @@ func (bot *bot) partChannel(channel string) {
 		for _, conn := range conns {
 			err := conn.send("PART " + channel)
 			if err != nil {
-				Log.Error(err)
+				Log.Error(err.Error())
 				conn.restore()
 				conn.close()
 				bot.partChannel(channel)
@@ -169,7 +167,6 @@ func (bot *bot) joinChannels() {
 
 func (bot *bot) joinChannel(channel string) {
 	channel = strings.ToLower(channel)
-	Log.Debug(bot.channels)
 	if conns, ok := bot.channels[channel]; ok && len(conns) > 0 {
 		// TODO: check msg ids and join channels more than one time
 		Log.Info("already joined channel", channel)
@@ -192,7 +189,7 @@ func (bot *bot) joinChannel(channel string) {
 	}
 	err := conn.send("JOIN " + channel)
 	if err != nil {
-		Log.Error(err)
+		Log.Error(err.Error())
 		conn.restore()
 		conn.close()
 		bot.join <- channel
@@ -258,7 +255,7 @@ func (bot *bot) say(msg string) {
 	conn.lastUse = time.Now()
 	err := conn.send("PRIVMSG " + msg)
 	if err != nil {
-		Log.Error(err)
+		Log.Error(err.Error())
 		conn.restore()
 		conn.close()
 		bot.say(msg)
@@ -269,7 +266,6 @@ func (bot *bot) say(msg string) {
 }
 
 func (bot *bot) handleMessage(spl []string) {
-	Log.Debug(spl)
 	msg := spl[1]
 	switch spl[0] {
 	case "JOIN":

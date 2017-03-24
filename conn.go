@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/textproto"
@@ -73,7 +74,7 @@ func (conn *connection) part(channel string) {
 func (conn *connection) restore() {
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error(r)
+			Log.Error("cannot restore connection")
 		}
 	}()
 	if conn.conntype == connReadConn {
@@ -91,7 +92,6 @@ func (conn *connection) restore() {
 		conn.bot.readconns = append(conn.bot.readconns[:i], conn.bot.readconns[i+1:]...)
 		conn.bot.Unlock()
 		for _, channel := range channels {
-			Log.Debug(conn.bot.channels)
 			conns := conn.bot.channels[channel]
 			for i, co := range conns {
 				if conn == co {
@@ -101,7 +101,6 @@ func (conn *connection) restore() {
 					conn.part(channel)
 				}
 			}
-			Log.Debug(conn.bot.channels)
 			conn.bot.join <- channel
 
 		}
@@ -143,7 +142,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error(r)
+			Log.Error("error connecting")
 		}
 		conn.restore()
 	}()
@@ -171,7 +170,6 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 			}
 		}
 		conn.active = true
-		stats.totalMsgsReceived++
 	}
 }
 
@@ -189,16 +187,13 @@ func isWhisper(line string) bool {
 func (conn *connection) send(msg string) error {
 	if conn.conn == nil {
 		Log.Error("conn is nil", conn, conn.conn)
-		return fmt.Errorf("conn is nil")
+		return errors.New("connection is nil")
 	}
 	_, err := fmt.Fprint(conn.conn, msg+"\r\n")
 	if err != nil {
-		Log.Error(msg)
-		Log.Error(err)
-		Log.Error(conn)
+		Log.Error("error sending message")
 		return err
 	}
-	stats.totalMsgsSent++
 	return nil
 }
 

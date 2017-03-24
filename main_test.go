@@ -1,29 +1,27 @@
 package main
 
 import (
-	"reflect"
+	"github.com/op/go-logging"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestCanInitLogger(t *testing.T) {
 	log := initLogger(0)
-	if reflect.TypeOf(log).String() != "logging.Logger" {
-		t.Fatal("logger invalid type")
-	}
+	assert.IsType(t, logging.Logger{}, log)
 }
 
 func TestCanReadConfig(t *testing.T) {
-	cfg, err := readConfig("test_data/config.json")
+	cfg, err := readConfig("config.example.json")
 	if err != nil {
 		t.Fatal("error reading config", err)
 	}
-	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
-		t.Fatal("invalid config")
-	}
+	assert.Equal(t, "test", cfg.BrokerPass)
+	assert.Equal(t, "3333", cfg.BrokerPort)
 }
 
 func TestCanNotReadConfig(t *testing.T) {
-	_, err := readConfig("test_data/invalid_file.json")
+	_, err := readConfig("invalid_file.json")
 	if err == nil {
 		t.Fatal("Invalid file but no error thrown", err)
 	}
@@ -35,9 +33,8 @@ func TestCanUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to unmarshal config")
 	}
-	if cfg.BrokerPass != "test" || cfg.BrokerPort != "3333" {
-		t.Fatal("invalid config")
-	}
+	assert.Equal(t, "test", cfg.BrokerPass)
+	assert.Equal(t, "3333", cfg.BrokerPort)
 }
 
 func TestCanNotUnmarshal(t *testing.T) {
