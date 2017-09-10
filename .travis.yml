@@ -4,6 +4,5 @@ go:
  - 1.7.1
 
 script:
- - go install
  - go build
  - go test -v
