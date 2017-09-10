@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -11,9 +8,10 @@ import (
 )
 
 var (
-	cfg config
 	// Log logger from go-logging
-	Log logging.Logger
+	Log        logging.Logger
+	brokerPass string
+	logLevel   logging.Level
 
 	bots = make(map[string]*bot)
 
@@ -21,41 +19,31 @@ var (
 	joinTicker = time.NewTicker(300 * time.Millisecond)
 )
 
-type config struct {
-	BrokerPort string `json:"broker_port"`
-	BrokerPass string `json:"broker_pass"`
-	APIHost    string `json:"api_host"`
-	APIPath    string `json:"api_path"`
+func main() {
+	brokerPass = getEnv("BROKERPASS", "relaybroker")
+	logLevel = getLogLevel(getEnv("LOGLEVEL", "info"))
+
+	Log = initLogger(logLevel)
+	server := new(Server)
+	server.startServer()
 }
 
-func main() {
-	loggerArgs := os.Args
-	var level = logging.INFO
-	if len(loggerArgs) > 1 {
-		switch loggerArgs[1] {
-		case "debug":
-			level = logging.DEBUG
-		case "error":
-			level = logging.ERROR
-		default:
-			level = logging.INFO
-		}
-	} else {
-		level = logging.INFO
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
 	}
-	Log = initLogger(level)
-	Log.Infof("running in %s mode, switch by typing ./relaybroker debug/error", level.String())
-	var err error
-	cfg, err = readConfig("config.json")
-	if err != nil {
-		Log.Fatal(err)
+	return fallback
+}
+
+func getLogLevel(level string) logging.Level {
+	switch level {
+	case "debug":
+		return logging.DEBUG
+	case "error":
+		return logging.ERROR
+	default:
+		return logging.INFO
 	}
-
-	Log.Infof("starting up on port %s", cfg.BrokerPort)
-	server := new(Server)
-
-	server.startServer()
-
 }
 
 func initLogger(level logging.Level) logging.Logger {
@@ -72,20 +60,4 @@ func initLogger(level logging.Level) logging.Logger {
 	backendLeveled.SetLevel(level, "relaybroker")
 	logging.SetBackend(backendLeveled)
 	return *logger
-}
-
-func readConfig(path string) (config, error) {
-	file, err := ioutil.ReadFile(path)
-	if err != nil {
-		return cfg, err
-	}
-	return unmarshalConfig(file)
-}
-
-func unmarshalConfig(file []byte) (config, error) {
-	err := json.Unmarshal(file, &cfg)
-	if err != nil {
-		return cfg, err
-	}
-	return cfg, nil
 }

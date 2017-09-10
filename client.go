@@ -105,13 +105,11 @@ func (c *Client) handleMessage(line string) {
 		if strings.Contains(msg, ";") {
 			passwords := strings.Split(msg, ";")
 			pass = passwords[1]
-			if cfg.BrokerPass != "" {
-				if passwords[0] != cfg.BrokerPass {
-					c.toClient <- "invalid relaybroker password\r\n"
-					c.close()
-					Log.Error("invalid relaybroker password")
-					return
-				}
+			if passwords[0] != brokerPass {
+				c.toClient <- "invalid relaybroker password\r\n"
+				c.close()
+				Log.Error("invalid relaybroker password")
+				return
 			}
 		}
 		c.bot.pass = pass
