@@ -1,22 +1,13 @@
-PACKAGES = $(shell go list ./... | grep -v /vendor/)
 
-build:
-	glide install
-	glide update
-	go build
 
-install:
-	go install
+default: dependencies relaybroker 
 
-test:
-	go test -v $(shell go list ./... | grep -v /vendor/)
+.PHONY:
+dependencies:
+	go get github.com/op/go-logging
+	go get github.com/stretchr/testify/assert
+	
 
-cover:
-	echo "mode: count" > coverage-all.out
-	$(foreach pkg,$(PACKAGES),\
-		go test -coverprofile=coverage.out -covermode=count $(pkg);\
-		tail -n +2 coverage.out >> coverage-all.out;)
-	go tool cover -html=coverage-all.out
-
-fmt:
-	go fmt ./... 2>&1 | grep -v ^vendor
+.PHONY: relaybroker
+relaybroker:
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o relaybroker .

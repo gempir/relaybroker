@@ -14,11 +14,12 @@ type Server struct {
 }
 
 func (s *Server) startServer() {
-	ln, err := net.Listen("tcp", ":"+cfg.BrokerPort)
+	ln, err := net.Listen("tcp", ":3333")
 	if err != nil {
 		Log.Fatal("tcp server not starting", err)
 	}
 	defer ln.Close()
+	Log.Info("started listening")
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
