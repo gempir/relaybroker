@@ -7,5 +7,5 @@ services:
   - docker
 
 script:
- - go get
+ - go get -t -v ./...
  - go test -v
