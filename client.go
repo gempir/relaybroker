@@ -84,6 +84,7 @@ func (c *Client) close() {
 }
 
 func (c *Client) handleMessage(line string) {
+	Log.Debug(line)
 	c.test = append(c.test, line)
 	defer func() {
 		if r := recover(); r != nil {
