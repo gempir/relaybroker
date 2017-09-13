@@ -9,4 +9,3 @@ services:
 script:
  - go get
  - go test -v
- - docker build .
