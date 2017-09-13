@@ -2,7 +2,11 @@ language: go
 go:
  - 1.6.3
  - 1.7.1
+sudo: required
+services:
+  - docker
 
 script:
- - make
+ - go get
  - go test -v
+ - docker build .
