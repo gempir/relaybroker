@@ -155,6 +155,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 			conn.restore()
 			return
 		}
+		Log.Debug(line)
 		if conn.conntype == connDelete {
 			conn.restore()
 		}
