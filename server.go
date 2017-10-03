@@ -1,53 +1,21 @@
 package main
 
-import (
-	"bufio"
-	"net"
-	"net/textproto"
-	"os"
-)
-
-// Server who handles incoming messages to relaybroker from a client
-type Server struct {
-	ln   net.Listener
-	conn net.Conn
+// Server interface for any relaybroker server
+type Server interface {
+	Start()
 }
 
-func (s *Server) startServer() {
-	ln, err := net.Listen("tcp", ":3333")
-	if err != nil {
-		Log.Fatal("tcp server not starting", err)
-	}
-	defer ln.Close()
-	Log.Info("started listening")
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			Log.Error(err.Error())
-			os.Exit(1)
-		}
-		go s.handleClient(newClient(conn))
+type tcpServer struct {
+	port int
+}
+
+// NewServer create server
+func NewServer(port int) Server {
+	return tcpServer{
+		port: port,
 	}
 }
 
-func (s *Server) stopServer() {
-	s.ln.Close()
-}
+func (s tcpServer) Start() {
 
-func (s *Server) handleClient(c Client) {
-	Log.Info("new client: " + c.incomingConn.RemoteAddr().String())
-	r := bufio.NewReader(c.incomingConn)
-	tp := textproto.NewReader(r)
-	c.init()
-
-	for {
-		line, err := tp.ReadLine()
-		if err != nil {
-			Log.Error("closing client", c.incomingConn.RemoteAddr().String(), err)
-			c.bot.clientConnected = false
-			c.close()
-			return
-		}
-		c.handleMessage(line)
-	}
 }
