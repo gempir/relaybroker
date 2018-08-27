@@ -6,6 +6,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Client for connection to relaybroker
@@ -53,7 +55,7 @@ func (c *Client) read() {
 func closeChannel(c chan string) {
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error("error closing channel ")
+			log.Error("error closing channel ")
 		}
 	}()
 	close(c)
@@ -69,7 +71,7 @@ func (c *Client) close() {
 				bots[c.ID].toClient <- m
 				return
 			}
-			Log.Debug("msg on dc bot")
+			log.Debug("msg on dc bot")
 		}
 	}
 	if c.bot.clientConnected {
@@ -79,16 +81,16 @@ func (c *Client) close() {
 	closeChannel(c.toClient)
 	c.bot.close()
 	delete(bots, c.ID)
-	Log.Debug("CLOSED CLIENT", c.bot.nick)
+	log.Debug("CLOSED CLIENT", c.bot.nick)
 
 }
 
 func (c *Client) handleMessage(line string) {
-	Log.Debug(line)
+	log.Debug(line)
 	c.test = append(c.test, line)
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error("message handling error")
+			log.Error("message handling error")
 			c.close()
 		}
 	}()
@@ -109,7 +111,7 @@ func (c *Client) handleMessage(line string) {
 			if passwords[0] != brokerPass {
 				c.toClient <- "invalid relaybroker password\r\n"
 				c.close()
-				Log.Error("invalid relaybroker password")
+				log.Error("invalid relaybroker password")
 				return
 			}
 		}
@@ -141,7 +143,7 @@ func (c *Client) registerBot(cmd string, msg string) bool {
 			c.join = make(chan string, 50000)
 			go c.joinChannels()
 			c.bot.clientConnected = true
-			Log.Debug("old bot reconnected", msg)
+			log.Debug("old bot reconnected", msg)
 			return true
 		}
 		c.bot = newBot(c)

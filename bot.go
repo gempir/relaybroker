@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type bot struct {
@@ -63,7 +65,7 @@ func (bot *bot) close() {
 	for k := range bot.channels {
 		delete(bot.channels, k)
 	}
-	Log.Info("CLOSED BOT", bot.nick)
+	log.Info("CLOSED BOT", bot.nick)
 	bot.Unlock()
 }
 
@@ -74,14 +76,14 @@ func (bot *bot) checkConnections() {
 			conn.active = false
 			err := conn.send("PING")
 			if err != nil {
-				Log.Error(err.Error())
+				log.Error(err.Error())
 				conn.restore()
 				conn.close()
 			}
 			go func() {
 				time.Sleep(10 * time.Second)
 				if !conn.active {
-					Log.Info("read connection died, reconnecting...")
+					log.Info("read connection died, reconnecting...")
 					conn.restore()
 					conn.close()
 				}
@@ -94,14 +96,14 @@ func (bot *bot) checkConnections() {
 				conn.active = false
 				err := conn.send("PING")
 				if err != nil {
-					Log.Error(err.Error())
+					log.Error(err.Error())
 					conn.restore()
 					conn.close()
 				} else {
 					go func() {
 						time.Sleep(10 * time.Second)
 						if !conn.active {
-							Log.Info("send connection died, closing...")
+							log.Info("send connection died, closing...")
 							conn.restore()
 							conn.close()
 						}
@@ -109,7 +111,7 @@ func (bot *bot) checkConnections() {
 				}
 			} else {
 				if len(bot.sendconns) > 2 {
-					Log.Info("closing unused connection")
+					log.Info("closing unused connection")
 					conn.restore()
 					conn.close()
 				} else {
@@ -120,7 +122,7 @@ func (bot *bot) checkConnections() {
 		go func() {
 			err := bot.whisperconn.send("PING")
 			if err != nil {
-				Log.Error(err.Error())
+				log.Error(err.Error())
 				bot.whisperconn.restore()
 			}
 			time.Sleep(10 * time.Second)
@@ -142,7 +144,7 @@ func (bot *bot) partChannel(channel string) {
 		for _, conn := range conns {
 			err := conn.send("PART " + channel)
 			if err != nil {
-				Log.Error(err.Error())
+				log.Error(err.Error())
 				conn.restore()
 				conn.close()
 				bot.partChannel(channel)
@@ -150,16 +152,16 @@ func (bot *bot) partChannel(channel string) {
 			}
 			conn.part(channel)
 		}
-		Log.Infof("left channel on %d connections\n", len(conns))
+		log.Infof("left channel on %d connections\n", len(conns))
 		delete(bot.channels, channel)
 		return
 	}
-	Log.Error("never joined ", channel)
+	log.Error("never joined ", channel)
 }
 
 func (bot *bot) joinChannels() {
 	for channel := range bot.join {
-		Log.Debug(channel)
+		log.Debug(channel)
 		go bot.joinChannel(channel)
 		<-joinTicker.C
 	}
@@ -169,7 +171,7 @@ func (bot *bot) joinChannel(channel string) {
 	channel = strings.ToLower(channel)
 	if conns, ok := bot.channels[channel]; ok && len(conns) > 0 {
 		// TODO: check msg ids and join channels more than one time
-		Log.Info("already joined channel", channel)
+		log.Info("already joined channel", channel)
 		return
 	}
 	var conn *connection
@@ -189,7 +191,7 @@ func (bot *bot) joinChannel(channel string) {
 	}
 	err := conn.send("JOIN " + channel)
 	if err != nil {
-		Log.Error(err.Error())
+		log.Error(err.Error())
 		conn.restore()
 		conn.close()
 		bot.join <- channel
@@ -200,7 +202,7 @@ func (bot *bot) joinChannel(channel string) {
 	}
 	conn.joins = append(conn.joins, channel)
 	bot.channels[channel] = append(bot.channels[channel], conn)
-	Log.Info("joined channel", channel)
+	log.Info("joined channel", channel)
 
 }
 
@@ -222,7 +224,7 @@ func (bot *bot) newConn(t connType) {
 		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.whisperconn = conn
 	}
-	Log.Debug("NEW CONN", t)
+	log.Debug("NEW CONN", t)
 }
 
 func (bot *bot) readChat() {
@@ -243,7 +245,7 @@ func (bot *bot) say(msg string) {
 	}
 	if conn == nil || min > 10 {
 		bot.newConn(connSendConn)
-		Log.Infof("created new conn, total: %d\n", len(bot.sendconns))
+		log.Infof("created new conn, total: %d\n", len(bot.sendconns))
 		bot.say(msg)
 		return
 	}
@@ -255,14 +257,14 @@ func (bot *bot) say(msg string) {
 	conn.lastUse = time.Now()
 	err := conn.send("PRIVMSG " + msg)
 	if err != nil {
-		Log.Error(err.Error())
+		log.Error(err.Error())
 		conn.restore()
 		conn.close()
 		bot.say(msg)
 		return
 	}
-	Log.Debugf("%p   %d\n", conn, conn.msgCount)
-	Log.Info("sent:", msg)
+	log.Debugf("%p   %d\n", conn, conn.msgCount)
+	log.Info("sent:", msg)
 }
 
 func (bot *bot) handleMessage(spl []string) {
@@ -275,6 +277,6 @@ func (bot *bot) handleMessage(spl []string) {
 	case "PRIVMSG":
 		bot.say(msg)
 	default:
-		Log.Error("unhandled message", spl[0], msg)
+		log.Error("unhandled message", spl[0], msg)
 	}
 }

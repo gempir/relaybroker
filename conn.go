@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type connType uint32
@@ -74,7 +76,7 @@ func (conn *connection) part(channel string) {
 func (conn *connection) restore() {
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error("cannot restore connection")
+			log.Error("cannot restore connection")
 		}
 	}()
 	if conn.conntype == connReadConn {
@@ -87,7 +89,7 @@ func (conn *connection) restore() {
 				break
 			}
 		}
-		Log.Error("readconn died, lost joins:", channels)
+		log.Error("readconn died, lost joins:", channels)
 		conn.bot.Lock()
 		conn.bot.readconns = append(conn.bot.readconns[:i], conn.bot.readconns[i+1:]...)
 		conn.bot.Unlock()
@@ -106,7 +108,7 @@ func (conn *connection) restore() {
 		}
 
 	} else if conn.conntype == connSendConn {
-		Log.Error("sendconn died")
+		log.Error("sendconn died")
 		var i int
 		for index, co := range conn.bot.sendconns {
 			if conn == co {
@@ -118,7 +120,7 @@ func (conn *connection) restore() {
 		conn.bot.sendconns = append(conn.bot.sendconns[:i], conn.bot.sendconns[i+1:]...)
 		conn.bot.Unlock()
 	} else if conn.conntype == connWhisperConn {
-		Log.Error("whisperconn died, reconnecting")
+		log.Error("whisperconn died, reconnecting")
 		conn.close()
 		conn.bot.newConn(connWhisperConn)
 	}
@@ -129,7 +131,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	conn.bot = client.bot
 	c, err := tls.Dial("tcp", *addr, nil)
 	if err != nil {
-		Log.Error("unable to connect to irc server", err)
+		log.Error("unable to connect to irc server", err)
 		time.Sleep(2 * time.Second)
 		conn.restore()
 		return
@@ -142,7 +144,7 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			Log.Error("error connecting")
+			log.Error("error connecting")
 		}
 		conn.restore()
 	}()
@@ -151,18 +153,18 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			Log.Error("read:", err)
+			log.Error("read:", err)
 			conn.restore()
 			return
 		}
-		Log.Debug(line)
+		log.Debug(line)
 		if conn.conntype == connDelete {
 			conn.restore()
 		}
 		if strings.HasPrefix(line, "PING") {
 			conn.send(strings.Replace(line, "PING", "PONG", 1))
 		} else if strings.HasPrefix(line, "PONG") {
-			Log.Debug("PONG")
+			log.Debug("PONG")
 		} else {
 			if isWhisper(line) && conn.conntype != connWhisperConn {
 				// throw away message
@@ -187,12 +189,12 @@ func isWhisper(line string) bool {
 
 func (conn *connection) send(msg string) error {
 	if conn.conn == nil {
-		Log.Error("conn is nil", conn, conn.conn)
+		log.Error("conn is nil", conn, conn.conn)
 		return errors.New("connection is nil")
 	}
 	_, err := fmt.Fprint(conn.conn, msg+"\r\n")
 	if err != nil {
-		Log.Error("error sending message")
+		log.Error("error sending message")
 		return err
 	}
 	return nil
