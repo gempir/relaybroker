@@ -160,12 +160,13 @@ func (bot *bot) partChannel(channel string) {
 func (bot *bot) joinChannels() {
 	for channel := range bot.join {
 		Log.Debug(channel)
-		go bot.joinChannel(channel)
+		bot.joinChannel(channel)
 		<-joinTicker.C
 	}
 }
 
 func (bot *bot) joinChannel(channel string) {
+	Log.Info("NaM")
 	channel = strings.ToLower(channel)
 	if conns, ok := bot.channels[channel]; ok && len(conns) > 0 {
 		// TODO: check msg ids and join channels more than one time
@@ -185,7 +186,7 @@ func (bot *bot) joinChannel(channel string) {
 		return
 	}
 	for !conn.active {
-		time.Sleep(time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 	err := conn.send("JOIN " + channel)
 	if err != nil {
@@ -201,7 +202,6 @@ func (bot *bot) joinChannel(channel string) {
 	conn.joins = append(conn.joins, channel)
 	bot.channels[channel] = append(bot.channels[channel], conn)
 	Log.Info("joined channel", channel)
-
 }
 
 func (bot *bot) newConn(t connType) {
@@ -222,7 +222,7 @@ func (bot *bot) newConn(t connType) {
 		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.whisperconn = conn
 	}
-	Log.Debug("NEW CONN", t)
+	Log.Info("NEW CONN", t)
 }
 
 func (bot *bot) readChat() {

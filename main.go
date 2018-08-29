@@ -16,7 +16,7 @@ var (
 	bots = make(map[string]*bot)
 
 	// sync all bots joins since its ip based and not account based
-	joinTicker = time.NewTicker(300 * time.Millisecond)
+	joinTicker = time.NewTicker(time.Millisecond)
 )
 
 func main() {
