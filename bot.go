@@ -185,7 +185,7 @@ func (bot *bot) joinChannel(channel string) {
 		return
 	}
 	for !conn.active {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 	err := conn.send("JOIN " + channel)
 	if err != nil {
