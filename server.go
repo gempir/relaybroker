@@ -43,7 +43,7 @@ func (s *Server) handleClient(c Client) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			Log.Error("closing client", c.incomingConn.RemoteAddr().String(), err)
+			Log.Info("closing client", c.incomingConn.RemoteAddr().String(), err)
 			c.bot.clientConnected = false
 			c.close()
 			return

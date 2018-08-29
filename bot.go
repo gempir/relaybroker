@@ -275,6 +275,6 @@ func (bot *bot) handleMessage(spl []string) {
 	case "PRIVMSG":
 		bot.say(msg)
 	default:
-		Log.Error("unhandled message", spl[0], msg)
+		Log.Warning("unhandled message", spl[0], msg)
 	}
 }
