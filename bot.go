@@ -221,7 +221,7 @@ func (bot *bot) newConn(t connType) {
 		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.whisperconn = conn
 	}
-	Log.Info("NEW CONN", t)
+	Log.Info("NEW CONN, TOTAL: ", len(bot.readconns)+len(bot.sendconns))
 }
 
 func (bot *bot) readChat() {
