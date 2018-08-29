@@ -166,7 +166,6 @@ func (bot *bot) joinChannels() {
 }
 
 func (bot *bot) joinChannel(channel string) {
-	Log.Info("NaM")
 	channel = strings.ToLower(channel)
 	if conns, ok := bot.channels[channel]; ok && len(conns) > 0 {
 		// TODO: check msg ids and join channels more than one time
