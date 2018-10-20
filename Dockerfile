@@ -10,4 +10,3 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=0 /go/src/github.com/gempir/relaybroker/app .
 CMD ["./app"]  
-EXPOSE 3333

@@ -11,6 +11,8 @@ Use the environment variable "BROKERPASS" to set a custom password, the default 
 
 Loglevel can be changed via env var "LOGLEVEL". The options are debug, info and error. Info is default.
 
+The ip/port relaybroker listens to can be changed via the env var "BROKERHOST". The default is ":3333" which means it listens to port 3333 on local and external devices.
+
 ### Docker
 Run relaybroker as a docker container like this:
 
