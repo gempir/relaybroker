@@ -92,6 +92,7 @@ func (c *Client) handleMessage(line string) {
 			c.close()
 		}
 	}()
+	Log.Info(line)
 	spl := strings.SplitN(line, " ", 2)
 	msg := spl[1]
 	if c.bot == nil {
@@ -102,18 +103,7 @@ func (c *Client) handleMessage(line string) {
 	// irc command
 	switch spl[0] {
 	case "PASS":
-		pass := msg
-		if strings.Contains(msg, ";") {
-			passwords := strings.Split(msg, ";")
-			pass = passwords[1]
-			if passwords[0] != brokerPass {
-				c.toClient <- "invalid relaybroker password\r\n"
-				c.close()
-				Log.Error("invalid relaybroker password")
-				return
-			}
-		}
-		c.bot.pass = pass
+		c.bot.pass = msg
 	case "NICK":
 		c.bot.nick = strings.ToLower(msg) // make sure the nick is lowercase
 		// start bot when we got all login info

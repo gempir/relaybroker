@@ -10,7 +10,6 @@ import (
 var (
 	// Log logger from go-logging
 	Log        logging.Logger
-	brokerPass string
 	brokerHost string
 	logLevel   logging.Level
 
@@ -21,8 +20,7 @@ var (
 )
 
 func main() {
-	brokerPass = getEnv("BROKERPASS", "relaybroker")
-	brokerHost = getEnv("BROKERHOST", ":3333")
+	brokerHost = getEnv("BROKERHOST", "127.0.0.1:3333")
 	logLevel = getLogLevel(getEnv("LOGLEVEL", "info"))
 
 	Log = initLogger(logLevel)
