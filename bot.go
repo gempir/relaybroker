@@ -204,24 +204,29 @@ func (bot *bot) joinChannel(channel string) {
 }
 
 func (bot *bot) newConn(t connType) {
+	whisperConns := 0
+	var conn *connection
 	switch t {
 	case connReadConn:
-		conn := newConnection(t)
+		conn = newConnection(t)
 		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.readconns = append(bot.readconns, conn)
 	case connSendConn:
-		conn := newConnection(t)
+		conn = newConnection(t)
 		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.sendconns = append(bot.sendconns, conn)
 	case connWhisperConn:
 		if bot.whisperconn != nil {
 			bot.whisperconn.close()
 		}
-		conn := newConnection(t)
+		conn = newConnection(t)
 		go conn.connect(bot.client, bot.pass, bot.nick)
 		bot.whisperconn = conn
 	}
-	Log.Info("NEW CONN, TOTAL: ", len(bot.readconns)+len(bot.sendconns))
+	if bot.whisperconn != nil {
+		whisperConns = 1
+	}
+	Log.Infof("NEW %s, TOTAL: %d", conn.name, len(bot.readconns)+len(bot.sendconns)+whisperConns)
 }
 
 func (bot *bot) readChat() {

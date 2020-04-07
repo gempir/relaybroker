@@ -84,7 +84,7 @@ func (c *Client) close() {
 }
 
 func (c *Client) handleMessage(line string) {
-	Log.Debug(line)
+	Log.Info("[CLIENT] " + line)
 	c.test = append(c.test, line)
 	defer func() {
 		if r := recover(); r != nil {
@@ -92,7 +92,6 @@ func (c *Client) handleMessage(line string) {
 			c.close()
 		}
 	}()
-	Log.Info(line)
 	spl := strings.SplitN(line, " ", 2)
 	msg := spl[1]
 	if c.bot == nil {

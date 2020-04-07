@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/textproto"
 	"strings"
@@ -32,6 +33,7 @@ type connection struct {
 	alive    bool
 	conntype connType
 	bot      *bot
+	name     string
 }
 
 func newConnection(t connType) *connection {
@@ -39,6 +41,7 @@ func newConnection(t connType) *connection {
 		joins:    make([]string, 0),
 		conntype: t,
 		lastUse:  time.Now(),
+		name:     randomHash(),
 	}
 }
 
@@ -126,8 +129,12 @@ func (conn *connection) restore() {
 }
 
 func (conn *connection) connect(client *Client, pass string, nick string) {
+	dialer := &net.Dialer{
+		KeepAlive: time.Second * 10,
+	}
+
 	conn.bot = client.bot
-	c, err := tls.Dial("tcp", *addr, nil)
+	c, err := tls.DialWithDialer(dialer, "tcp", *addr, &tls.Config{})
 	if err != nil {
 		Log.Error("unable to connect to irc server", err)
 		time.Sleep(2 * time.Second)
@@ -136,9 +143,8 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	}
 	conn.conn = c
 
+	conn.send("CAP REQ :twitch.tv/tags twitch.tv/commands")
 	conn.login(pass, nick)
-	conn.send("CAP REQ :twitch.tv/tags")
-	conn.send("CAP REQ :twitch.tv/commands")
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -146,16 +152,16 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 		}
 		conn.restore()
 	}()
-	reader := bufio.NewReader(conn.conn)
-	tp := textproto.NewReader(reader)
+	tp := textproto.NewReader(bufio.NewReader(conn.conn))
+
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			Log.Error("read:", err)
-			conn.restore()
+			Log.Fatalf("[READERROR:%s] %s", conn.name, err.Error())
+			// conn.restore()
 			return
 		}
-		Log.Debug(line)
+		Log.Debugf("[TWITCH:%s] %s", conn.name, line)
 		if conn.conntype == connDelete {
 			conn.restore()
 		}
@@ -195,6 +201,7 @@ func (conn *connection) send(msg string) error {
 		Log.Error("error sending message")
 		return err
 	}
+	Log.Debugf("[OUTGOING:%s] %s", conn.name, msg)
 	return nil
 }
 
@@ -205,4 +212,13 @@ func (conn *connection) reduceMsgCount() {
 func (conn *connection) countMsg() {
 	conn.msgCount++
 	time.AfterFunc(30*time.Second, conn.reduceMsgCount)
+}
+
+func randomHash() string {
+	n := 5
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%X", b)
 }
