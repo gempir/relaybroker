@@ -157,8 +157,8 @@ func (conn *connection) connect(client *Client, pass string, nick string) {
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
-			Log.Fatalf("[READERROR:%s] %s", conn.name, err.Error())
-			// conn.restore()
+			Log.Errorf("[READERROR:%s] %s", conn.name, err.Error())
+			conn.restore()
 			return
 		}
 		Log.Debugf("[TWITCH:%s] %s", conn.name, line)
