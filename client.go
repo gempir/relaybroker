@@ -10,33 +10,40 @@ import (
 
 // Client for connection to relaybroker
 type Client struct {
-	ID           string
-	bot          *bot
-	incomingConn net.Conn
-	fromClient   chan string
-	toClient     chan string
-	join         chan string // TODO: this should be some kind of priority queue
-	test         []string
+	ID             string
+	bot            *bot
+	incomingConn   net.Conn
+	fromClient     chan string
+	toClient       chan string
+	joinedChannels map[string]bool
+	join           chan string // TODO: this should be some kind of priority queue
+	test           []string
 }
 
 func newClient(conn net.Conn) Client {
 	return Client{
-		incomingConn: conn,
-		fromClient:   make(chan string, 10),
-		toClient:     make(chan string, 10),
-		join:         make(chan string, 50000),
-		test:         make([]string, 0),
+		incomingConn:   conn,
+		fromClient:     make(chan string, 10),
+		toClient:       make(chan string, 10),
+		join:           make(chan string, 50000),
+		test:           make([]string, 0),
+		joinedChannels: make(map[string]bool),
 	}
 }
 
 func (c *Client) init() {
 	go c.joinChannels()
 	go c.read()
+	go c.relaybrokerMeta()
 }
 
 func (c *Client) joinChannels() {
-	for channel := range c.join {
-		c.bot.join <- channel
+	for channelsJoinMessage := range c.join {
+		c.bot.join <- channelsJoinMessage
+
+		for _, channel := range strings.Split(channelsJoinMessage, ",") {
+			c.joinedChannels[strings.TrimPrefix(channel, "#")] = true
+		}
 	}
 }
 
@@ -48,6 +55,15 @@ func (c *Client) read() {
 		//cha <- msg
 	}
 	//closeChannel(cha)
+}
+
+func (c *Client) relaybrokerMeta() {
+	ticker := time.NewTicker(1 * time.Second)
+	msg := "@badge-info=founder/47;badges=moderator/1,founder/0,premium/1;color=#00FF80;display-name=gempir;emotes=;flags=;id=28b511cc-43b3-44b7-a605-230aadbb2f9b;mod=1;room-id=11148817;subscriber=0;tmi-sent-ts=1576066088367;turbo=0;user-id=77829817;user-type=mod :gempir!gempir@gempir.tmi.twitch.tv PRIVMSG #pajlada :"
+
+	for range ticker.C {
+		c.incomingConn.Write([]byte(fmt.Sprintf("%s%d\r\n", msg, len(c.joinedChannels))))
+	}
 }
 
 func closeChannel(c chan string) {
